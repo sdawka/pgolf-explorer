@@ -1,0 +1,15 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# demo-dag artifacts (regenerable by running demo.py)
+demo-dag/install.log
+demo-dag/memory.db
+demo-dag/memory.db-shm
+demo-dag/memory.db-wal
+
+# macOS
+.DS_Store

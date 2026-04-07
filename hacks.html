@@ -1,0 +1,748 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gemma 4 Hack Recipes</title>
+<script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+<style>
+  :root {
+    --bg: #0f1117;
+    --bg2: #1a1d27;
+    --bg3: #242836;
+    --border: #2e3345;
+    --text: #e0e0e8;
+    --text2: #9498a8;
+    --accent: #6c8cff;
+    --hack: #39d98a;
+    --gold: #ffd700;
+    --danger: #e8834a;
+    --code-bg: #0b0d13;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace; background: var(--bg); color: var(--text); height:100vh; overflow:hidden; }
+  #app { display:grid; grid-template-rows: auto 1fr; height:100vh; }
+
+  .header { background:var(--bg2); border-bottom:1px solid var(--border); padding:12px 20px; display:flex; align-items:center; gap:20px; flex-wrap:wrap; }
+  .header h1 { font-size:16px; font-weight:600; letter-spacing:0.5px; white-space:nowrap; }
+  .header h1 .brand { color:var(--hack); }
+  .header a.nav-link { color:var(--text2); text-decoration:none; font-size:11px; text-transform:uppercase; letter-spacing:1px; padding:4px 8px; border:1px solid var(--border); border-radius:4px; }
+  .header a.nav-link:hover { color:var(--accent); border-color:var(--accent); }
+  .filters { display:flex; gap:14px; align-items:center; margin-left:auto; flex-wrap:wrap; }
+  .filter-group { display:flex; gap:4px; align-items:center; }
+  .filter-group label { font-size:9px; color:var(--text2); text-transform:uppercase; letter-spacing:1px; margin-right:4px; }
+  .chip { background:var(--bg3); border:1px solid var(--border); color:var(--text2); padding:4px 10px; border-radius:12px; font-family:inherit; font-size:10px; cursor:pointer; text-transform:uppercase; letter-spacing:0.5px; }
+  .chip.active { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .chip:hover:not(.active) { color:var(--text); border-color:var(--text2); }
+
+  .main { display:grid; grid-template-columns: 320px 1fr; overflow:hidden; }
+
+  .sidebar { background:var(--bg2); border-right:1px solid var(--border); overflow-y:auto; }
+  .sidebar-header { padding:12px 16px 6px; font-size:9px; text-transform:uppercase; letter-spacing:1.5px; color:var(--text2); }
+  .recipe-item { padding:12px 16px; cursor:pointer; border-left:3px solid transparent; transition:all 0.15s; border-bottom:1px solid var(--border); }
+  .recipe-item:hover { background:var(--bg3); }
+  .recipe-item.active { background:var(--bg3); border-left-color:var(--hack); }
+  .recipe-item .recipe-title { font-size:12px; font-weight:500; color:var(--text); margin-bottom:4px; display:flex; align-items:center; gap:6px; }
+  .recipe-item .recipe-emoji { font-size:14px; }
+  .recipe-item .recipe-meta { font-size:10px; color:var(--text2); display:flex; gap:10px; flex-wrap:wrap; }
+  .recipe-item .stars { color:var(--gold); letter-spacing:1px; }
+  .recipe-item .badge { background:var(--bg); border:1px solid var(--border); padding:1px 5px; border-radius:3px; font-size:9px; }
+  .recipe-item.dimmed { opacity:0.3; }
+
+  .content { overflow-y:auto; padding:24px 32px 40px; }
+  .content.empty { display:flex; align-items:center; justify-content:center; color:var(--text2); text-align:center; }
+  .recipe-header { margin-bottom:20px; padding-bottom:16px; border-bottom:1px solid var(--border); }
+  .recipe-header h2 { font-size:22px; font-weight:600; margin-bottom:8px; display:flex; align-items:center; gap:10px; }
+  .recipe-header h2 .emoji { font-size:26px; }
+  .recipe-header .meta-row { display:flex; gap:16px; flex-wrap:wrap; font-size:11px; color:var(--text2); text-transform:uppercase; letter-spacing:0.5px; }
+  .recipe-header .meta-row .stars { color:var(--gold); }
+  .recipe-header .meta-row span strong { color:var(--text); }
+
+  .section { margin-bottom:22px; }
+  .section h3 { font-size:11px; text-transform:uppercase; letter-spacing:1.5px; color:var(--hack); margin-bottom:10px; border-bottom:1px solid var(--border); padding-bottom:4px; }
+
+  .analogy { background:rgba(108,140,255,0.08); border-left:3px solid var(--accent); padding:12px 14px; border-radius:4px; font-size:13px; line-height:1.6; font-style:italic; color:var(--text); }
+
+  .prereq-list, .gotchas-list { list-style:none; padding:0; }
+  .prereq-list li, .gotchas-list li { font-size:12px; padding:4px 0 4px 18px; position:relative; line-height:1.6; color:var(--text); }
+  .prereq-list li::before { content:'✓'; color:var(--hack); position:absolute; left:0; font-weight:bold; }
+  .gotchas-list li::before { content:'⚠'; color:var(--danger); position:absolute; left:0; }
+  .prereq-list a { color:var(--accent); text-decoration:none; cursor:pointer; }
+  .prereq-list a:hover { text-decoration:underline; }
+
+  .touches-list { display:flex; flex-wrap:wrap; gap:6px; }
+  .touch-pill { background:var(--bg3); border:1px solid var(--border); padding:5px 10px; border-radius:12px; font-size:11px; color:var(--text); cursor:pointer; text-decoration:none; display:inline-block; transition:all 0.15s; }
+  .touch-pill:hover { border-color:var(--accent); color:var(--accent); }
+  .touch-pill .arrow { color:var(--text2); margin-left:4px; }
+
+  .step { margin-bottom:14px; }
+  .step-header { display:flex; align-items:baseline; gap:10px; margin-bottom:6px; }
+  .step-num { background:var(--hack); color:#0a0e14; width:22px; height:22px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; flex-shrink:0; }
+  .step-text { font-size:13px; line-height:1.6; color:var(--text); }
+  .code-block { background:var(--code-bg); border:1px solid var(--border); border-radius:6px; padding:12px 14px; margin:6px 0 0 32px; font-size:11.5px; line-height:1.55; overflow-x:auto; position:relative; }
+  .code-block pre { font-family:inherit; color:#c8ccd8; white-space:pre; }
+  .code-block .copy-btn { position:absolute; top:6px; right:6px; background:var(--bg3); border:1px solid var(--border); color:var(--text2); padding:3px 8px; border-radius:3px; font-family:inherit; font-size:9px; cursor:pointer; text-transform:uppercase; letter-spacing:0.5px; opacity:0; transition:opacity 0.15s; }
+  .code-block:hover .copy-btn { opacity:1; }
+  .code-block .copy-btn:hover { color:var(--hack); border-color:var(--hack); }
+  .code-block .copy-btn.copied { color:var(--hack); border-color:var(--hack); opacity:1; }
+  .code-block .comment { color:#6a7182; font-style:italic; }
+
+  .expected { background:rgba(57,217,138,0.08); border-left:3px solid var(--hack); padding:12px 14px; border-radius:4px; font-size:12px; line-height:1.6; }
+  .expected strong { color:var(--hack); }
+
+  .next-up { margin-top:28px; padding-top:16px; border-top:1px solid var(--border); font-size:11px; color:var(--text2); }
+  .next-up a { color:var(--accent); cursor:pointer; text-decoration:none; }
+  .next-up a:hover { text-decoration:underline; }
+
+  @media (max-width:900px) {
+    .main { grid-template-columns:1fr; grid-template-rows:auto 1fr; }
+    .sidebar { max-height:200px; border-right:none; border-bottom:1px solid var(--border); }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="header">
+    <h1><span class="brand">Gemma 4</span> Hack Recipes</h1>
+    <a class="nav-link" href="gemma.html">← Architecture Explorer</a>
+    <div class="filters">
+      <div class="filter-group">
+        <label>Hardware</label>
+        <div class="chip" :class="{active:hwFilter==='all'}" @click="hwFilter='all'">All</div>
+        <div class="chip" :class="{active:hwFilter==='mac'}" @click="hwFilter='mac'">Mac</div>
+        <div class="chip" :class="{active:hwFilter==='cuda'}" @click="hwFilter='cuda'">NVIDIA</div>
+        <div class="chip" :class="{active:hwFilter==='cpu'}" @click="hwFilter='cpu'">CPU-only</div>
+      </div>
+      <div class="filter-group">
+        <label>Goal</label>
+        <div class="chip" :class="{active:goalFilter==='all'}" @click="goalFilter='all'">All</div>
+        <div class="chip" :class="{active:goalFilter==='run'}" @click="goalFilter='run'">Run</div>
+        <div class="chip" :class="{active:goalFilter==='longctx'}" @click="goalFilter='longctx'">Long ctx</div>
+        <div class="chip" :class="{active:goalFilter==='quant'}" @click="goalFilter='quant'">Quantize</div>
+        <div class="chip" :class="{active:goalFilter==='finetune'}" @click="goalFilter='finetune'">Fine-tune</div>
+        <div class="chip" :class="{active:goalFilter==='augment'}" @click="goalFilter='augment'">Augment</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="sidebar">
+      <div class="sidebar-header">Ordered easiest → hardest</div>
+      <div v-for="r in recipes" :key="r.id"
+           class="recipe-item"
+           :class="{active: selectedId===r.id, dimmed: !matchesFilter(r)}"
+           @click="selectedId=r.id">
+        <div class="recipe-title">
+          <span class="recipe-emoji">{{r.emoji}}</span>
+          {{r.title}}
+        </div>
+        <div class="recipe-meta">
+          <span class="stars">{{'★'.repeat(r.stars)}}<span style="color:var(--border)">{{'★'.repeat(5-r.stars)}}</span></span>
+          <span>{{r.time}}</span>
+          <span class="badge">{{hwLabel(r.hardware)}}</span>
+          <span class="badge">{{goalLabel(r.goal)}}</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="content" :class="{empty:!selected}">
+      <div v-if="!selected">Pick a recipe on the left.</div>
+      <template v-else>
+        <div class="recipe-header">
+          <h2><span class="emoji">{{selected.emoji}}</span>{{selected.title}}</h2>
+          <div class="meta-row">
+            <span class="stars">{{'★'.repeat(selected.stars)}}</span>
+            <span><strong>Time:</strong> {{selected.time}}</span>
+            <span><strong>Hardware:</strong> {{hwLabel(selected.hardware)}}</span>
+            <span><strong>Goal:</strong> {{goalLabel(selected.goal)}}</span>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="analogy">{{selected.analogy}}</div>
+        </div>
+
+        <div class="section" v-if="selected.prereqs && selected.prereqs.length">
+          <h3>Prerequisites</h3>
+          <ul class="prereq-list">
+            <li v-for="p in selected.prereqs" :key="p">
+              <template v-if="typeof p === 'string'">{{p}}</template>
+              <template v-else>
+                <a @click="selectedId=p.id">{{p.label}}</a>
+              </template>
+            </li>
+          </ul>
+        </div>
+
+        <div class="section" v-if="selected.touches && selected.touches.length">
+          <h3>What you're actually changing</h3>
+          <div class="touches-list">
+            <a v-for="t in selected.touches" :key="t" class="touch-pill"
+               :href="'gemma.html'" :title="'Open ' + archLabel(t) + ' in the explorer'">
+              {{archLabel(t)}}<span class="arrow">↗</span>
+            </a>
+          </div>
+        </div>
+
+        <div class="section">
+          <h3>Recipe</h3>
+          <div v-for="(step, i) in selected.steps" :key="i" class="step">
+            <div class="step-header">
+              <span class="step-num">{{i+1}}</span>
+              <div class="step-text" v-html="step.text"></div>
+            </div>
+            <div v-if="step.code" class="code-block">
+              <button class="copy-btn" :class="{copied:copiedIdx===i}" @click="copyCode(step.code,i)">
+                {{copiedIdx===i ? 'copied' : 'copy'}}
+              </button>
+              <pre>{{step.code}}</pre>
+            </div>
+          </div>
+        </div>
+
+        <div class="section">
+          <h3>Expected result</h3>
+          <div class="expected" v-html="selected.expected"></div>
+        </div>
+
+        <div class="section" v-if="selected.gotchas && selected.gotchas.length">
+          <h3>Gotchas</h3>
+          <ul class="gotchas-list">
+            <li v-for="g in selected.gotchas" :key="g" v-html="g"></li>
+          </ul>
+        </div>
+
+        <div class="next-up" v-if="selected.nextUp">
+          Next up → <a @click="selectedId=selected.nextUp">{{nextUpLabel()}}</a>
+        </div>
+      </template>
+    </div>
+  </div>
+</div>
+
+<script>
+const { createApp, ref, computed } = Vue;
+
+// Map of arch node ids to friendly labels (mirrors gemma.html)
+const ARCH_LABELS = {
+  input_tokens:'Input Tokens',
+  tok_emb:'Token Embedding',
+  ple:'Per-Layer Embeddings',
+  pre_norm:'Pre-Attn RMSNorm',
+  final_norm:'Final RMSNorm',
+  decoder_block:'Decoder Block',
+  local_attn:'Local Sliding Attn',
+  global_attn:'Global Attn',
+  mlp:'MLP (GeGLU)',
+  moe_block:'MoE Side Block',
+  vision_enc:'Vision Encoder',
+  output_head:'Output Head',
+  kv_cache:'KV cache',
+  prompt_wrapper:'Prompt wrapper (above the model)',
+};
+
+const HW = { all:'Any', mac:'Mac', cuda:'NVIDIA', cpu:'CPU-only' };
+const GOALS = { run:'Run', longctx:'Long context', quant:'Quantize', finetune:'Fine-tune', augment:'Augment' };
+
+const RECIPES = [
+  {
+    id:'ollama',
+    title:'Run Gemma 4 with Ollama',
+    emoji:'🏃',
+    stars:1,
+    time:'5 min',
+    hardware:'all',
+    goal:'run',
+    analogy:'The absolute lowest-friction path. One shell command downloads E4B, sets up the runtime, and drops you into an interactive chat. If you want to see Gemma 4 running on your machine in the next five minutes, this is it. ⚠️ One caveat: Ollama\'s default Gemma 4 tags are NOT the QAT-Q4 quants — they\'re the higher-precision variants. <strong>gemma4:e4b ≈ 9.6 GB, gemma4:e2b ≈ 7.2 GB on disk</strong>. For genuinely small/fast inference on an 8 GB Air, see Recipe 2 (llama.cpp + the QAT Q4_K_M GGUF, ~3 GB) instead.',
+    prereqs:['~10 GB free disk for E4B (~7.5 GB for E2B)', 'Homebrew (Mac) or curl (Linux)'],
+    touches:['tok_emb','mlp','ple'],
+    steps:[
+      { text:'Install Ollama.', code:'# macOS\nbrew install ollama\n\n# Linux\ncurl -fsSL https://ollama.com/install.sh | sh' },
+      { text:'Pull and run Gemma 4 E4B. First run downloads ~9.6 GB (Ollama default is high-precision, NOT Q4); subsequent runs are instant.', code:'ollama run gemma4:e4b\n\n# Or for the smaller edge variant (~7.2 GB):\nollama run gemma4:e2b' },
+      { text:'You\'re in an interactive prompt. Try: <code>Explain PLE in three sentences.</code>' },
+      { text:'To exit: <code>Ctrl+D</code> or type <code>/bye</code>.' },
+    ],
+    expected:'<strong>Measured on an 8 GB M1 Air (April 2026):</strong> gemma4:e2b at ~1–2 tok/s for short replies (~13 s for a 15-word summary, warm). Cold first-token load ~8 s. On a 16 GB M2/M3, expect 8–15 tok/s. <strong>Memory footprint matches disk size</strong> because Ollama\'s default is high-precision, not Q4: ~9.6 GB resident for E4B, ~7.2 GB for E2B. On an 8 GB Air the default E4B variant will swap heavily — use E2B or switch to the Q4 GGUF path in Recipe 2.',
+    gotchas:[
+      '<strong>Ollama\'s default gemma4:e4b is NOT the QAT Q4_K_M variant.</strong> It\'s high-precision (~9.6 GB) and will thrash an 8 GB Air. For the genuinely small ~3 GB variant, use Recipe 2 with the official <code>google/gemma-4-E4B-QAT-GGUF</code> from HuggingFace.',
+      '<strong>Do NOT set <code>num_predict</code> on Gemma 4 via the API.</strong> Gemma 4 produces hidden reasoning tokens before visible output; a low cap (e.g. 80) consumes them all during internal thought and returns an empty string. Leave <code>num_predict</code> unset and let Ollama use the default, or set it to at least 400.',
+      'If E4B\'s 9.6 GB is too much, use <code>ollama run gemma4:e2b</code> (~7.2 GB) — genuinely smaller and runs on 8 GB machines, though still tight.',
+    ],
+    nextUp:'llamacpp',
+  },
+
+  {
+    id:'llamacpp',
+    title:'Run with raw llama.cpp flags',
+    emoji:'🔧',
+    stars:2,
+    time:'15 min',
+    hardware:'all',
+    goal:'run',
+    analogy:'Ollama is the friendly wrapper; llama.cpp is what lives under the hood. Using it directly gives you every knob: context length, batch size, KV cache type, GPU offload, sampling params. If you want to actually tinker, start here.',
+    prereqs:[
+      { id:'ollama', label:'Ollama recipe (to confirm the model works on your box)' },
+      'Xcode Command Line Tools (Mac) or build-essential (Linux)',
+    ],
+    touches:['tok_emb','mlp','local_attn','global_attn','ple'],
+    steps:[
+      { text:'Clone and build llama.cpp with Metal (Mac) or CUDA (NVIDIA).', code:'git clone https://github.com/ggerganov/llama.cpp\ncd llama.cpp\n\n# macOS (Metal auto-enabled)\nmake -j\n\n# Linux/NVIDIA\nGGML_CUDA=1 make -j' },
+      { text:'Download the official QAT int4 GGUF from Hugging Face.', code:'huggingface-cli download google/gemma-4-E4B-QAT-GGUF \\\n  gemma-4-E4B-QAT-Q4_K_M.gguf \\\n  --local-dir ./models' },
+      { text:'Run interactively with a 8K context window and all layers on GPU.', code:'./llama-cli \\\n  -m ./models/gemma-4-E4B-QAT-Q4_K_M.gguf \\\n  -p "Explain PLE in three sentences." \\\n  -c 8192 \\\n  -ngl 99 \\\n  --temp 0.7' },
+      { text:'Key flags to remember: <code>-c</code> = context window, <code>-ngl</code> = GPU layers (99 = all), <code>--temp</code> = sampling temperature, <code>-n</code> = max tokens to generate.' },
+    ],
+    expected:'Same model as Ollama, but you can see every token\'s load/eval time printed at the end. Useful baseline numbers for comparing with the optimization recipes below.',
+    gotchas:[
+      'If <code>-ngl 99</code> OOMs your GPU, drop to <code>-ngl 30</code> and compare speeds — partial offload still helps.',
+      'On M-series Macs, <code>-ngl 99</code> just puts tensors in unified memory — there\'s no "copy to GPU" cost.',
+    ],
+    nextUp:'mlx',
+  },
+
+  {
+    id:'mlx',
+    title:'MLX on Apple Silicon',
+    emoji:'🍎',
+    stars:2,
+    time:'15 min',
+    hardware:'mac',
+    goal:'run',
+    analogy:'Apple\'s native framework, built for M-series unified memory from scratch. Typically 20–40% faster than llama.cpp on the same Mac, AND it\'s the only practical way to fine-tune Gemma 4 on an 8 GB Air. If you\'re on Apple Silicon, this is your main workhorse.',
+    prereqs:['Apple Silicon Mac (M1 or newer)', 'Python 3.9+'],
+    touches:['tok_emb','mlp','local_attn','global_attn','ple'],
+    steps:[
+      { text:'Install mlx-lm (no heavy ML frameworks needed).', code:'pip install mlx-lm' },
+      { text:'Run an already-quantized E4B from the mlx-community org.', code:'mlx_lm.generate \\\n  --model mlx-community/gemma-4-E4B-4bit \\\n  --prompt "Explain PLE in three sentences." \\\n  --max-tokens 200' },
+      { text:'Interactive chat mode:', code:'mlx_lm.chat --model mlx-community/gemma-4-E4B-4bit' },
+      { text:'To convert your own bf16 weights to 4-bit MLX format:', code:'mlx_lm.convert \\\n  --hf-path google/gemma-4-E4B \\\n  --mlx-path ./gemma-4-E4B-mlx-4bit \\\n  --q-bits 4 \\\n  --q-group-size 64' },
+    ],
+    expected:'On an M2 Air (8 GB): ~30 tok/s on E4B-4bit, memory footprint ~3 GB. On an M3 Pro: ~55 tok/s. No fan spin-up at idle generation — MLX\'s scheduling is very smooth.',
+    gotchas:[
+      'MLX uses real Apple unified memory, so you can run a model slightly larger than your "available" RAM — the OS pages cleanly. Don\'t be afraid to try E4B on an 8 GB machine.',
+      'MLX supports PLE tables natively — no special flags, unlike some older llama.cpp builds.',
+    ],
+    nextUp:'context_extend',
+  },
+
+  {
+    id:'context_extend',
+    title:'Stretch context past 128K with p-RoPE',
+    emoji:'📏',
+    stars:3,
+    time:'20 min',
+    hardware:'all',
+    goal:'longctx',
+    analogy:'Gemma 4 natively handles 128K tokens on E2B/E4B. You can push that to ~256K without any retraining by telling the global-attention layers to "pretend positions are twice as close together as they really are". Works because Gemma 4 uses p-RoPE instead of vanilla RoPE — only a subset of frequencies need scaling.',
+    prereqs:[{ id:'llamacpp', label:'llama.cpp recipe (you need the raw CLI)' }],
+    touches:['global_attn'],
+    steps:[
+      { text:'Run llama.cpp with linear RoPE scaling set to 2.0. This extends effective context from 128K to 256K.', code:'./llama-cli \\\n  -m ./models/gemma-4-E4B-QAT-Q4_K_M.gguf \\\n  -c 262144 \\\n  --rope-scaling linear \\\n  --rope-scale 2.0 \\\n  -ngl 99 \\\n  -f ./my-long-document.txt' },
+      { text:'For a haystack test (drop a factual needle in a long document and ask a question about it):', code:'# Create a test file\npython -c "print(\'Lorem ipsum \' * 20000)" > haystack.txt\necho \'The secret code is BANANA42.\' >> haystack.txt\npython -c "print(\'dolor sit \' * 20000)" >> haystack.txt\n\n# Ask about the needle\n./llama-cli \\\n  -m ./models/gemma-4-E4B-QAT-Q4_K_M.gguf \\\n  -c 262144 --rope-scaling linear --rope-scale 2.0 \\\n  -ngl 99 \\\n  -f haystack.txt \\\n  -p "What is the secret code mentioned in this document?"' },
+      { text:'Start nudging <code>--rope-scale</code> higher (2.5, 3.0, 4.0). Test recall at each step — you\'ll find the breaking point.' },
+    ],
+    expected:'<strong>2× extension is safe</strong> — recall stays near-perfect up to ~256K. At 3× (~384K) you\'ll see intermittent recall drops. At 4× the model starts losing coherence on multi-turn reasoning but still answers direct lookups.',
+    gotchas:[
+      'Extension only affects the <strong>global-attention layers</strong> (every 6th). Local layers keep their 512-token window and are unaffected — that\'s fine, short-range meaning doesn\'t need scaling.',
+      'Each doubling of context roughly doubles KV-cache RAM. Pair this with the next recipe (KV-cache q4) to actually fit long context on a laptop.',
+    ],
+    nextUp:'kv_q4',
+  },
+
+  {
+    id:'kv_q4',
+    title:'KV-cache q4 for long context on 8 GB',
+    emoji:'💾',
+    stars:3,
+    time:'20 min',
+    hardware:'all',
+    goal:'longctx',
+    analogy:'As your context gets long, the KV cache (the model\'s "working memory" of everything it\'s seen so far) balloons past the model weights themselves. Quantizing that cache to 4-bit shrinks it 4× with barely any quality loss. This is the single biggest trick for fitting 128K context on an 8 GB machine.',
+    prereqs:[{ id:'llamacpp', label:'llama.cpp built with flash-attn' }],
+    touches:['global_attn','local_attn'],
+    steps:[
+      { text:'Rebuild llama.cpp with flash-attn if you didn\'t already (required for K/V quantization).', code:'# macOS — flash-attn is auto-enabled on Metal builds\nmake clean && make -j\n\n# Linux/NVIDIA\nmake clean && GGML_CUDA=1 make -j' },
+      { text:'Run with both K and V cache set to q4_0 and full flash-attention.', code:'./llama-cli \\\n  -m ./models/gemma-4-E4B-QAT-Q4_K_M.gguf \\\n  -c 131072 \\\n  --flash-attn \\\n  --cache-type-k q4_0 \\\n  --cache-type-v q4_0 \\\n  -ngl 99 \\\n  -f ./long-doc.txt -p "Summarize this."' },
+      { text:'Measure memory before/after with <code>top</code> or Activity Monitor. You should see ~4× smaller resident size during long generation.' },
+      { text:'Combine with <code>--rope-scale 2.0</code> from the previous recipe for 256K context on a 16 GB Mac.' },
+    ],
+    expected:'128K context fits in ~6 GB total RAM on E4B-Q4 (vs ~14 GB without cache quantization). Perplexity delta vs fp16 cache is typically &lt;0.3% on long-document tasks — essentially free.',
+    gotchas:[
+      'If you see repetition or glitched tokens, try <code>--cache-type-v q8_0</code> (keep K at q4, V at q8) — V-cache is slightly more sensitive.',
+      'Older llama.cpp builds (pre-2026) don\'t support <strong>per-layer</strong> cache type selection. Stay on a fresh build if you want to only quantize global-layer KV cache.',
+    ],
+    nextUp:'custom_quant',
+  },
+
+  {
+    id:'custom_quant',
+    title:'Custom GGUF quantization',
+    emoji:'📐',
+    stars:3,
+    time:'30 min',
+    hardware:'all',
+    goal:'quant',
+    analogy:'Official QAT int4 is the safe default, but <code>llama-quantize</code> lets you produce custom quants: different bit-widths per tensor type, experimental 3-bit schemes, whatever. Useful when you want to fit a bigger model or explore the quality/size tradeoff yourself.',
+    prereqs:[
+      { id:'llamacpp', label:'llama.cpp built' },
+      'A full-precision Gemma 4 GGUF (the fp16 master file, ~8 GB for E4B)',
+    ],
+    touches:['tok_emb','mlp','local_attn','global_attn','pre_norm','final_norm'],
+    steps:[
+      { text:'Download the fp16 master GGUF (not the pre-quantized one).', code:'huggingface-cli download google/gemma-4-E4B-GGUF \\\n  gemma-4-E4B-f16.gguf \\\n  --local-dir ./models' },
+      { text:'Produce a Q5_K_M quant — slightly larger than Q4_K_M but noticeably sharper.', code:'./llama-quantize \\\n  ./models/gemma-4-E4B-f16.gguf \\\n  ./models/gemma-4-E4B-Q5_K_M.gguf \\\n  Q5_K_M' },
+      { text:'Or go aggressive with Q3_K_S (3-bit). Expect quality loss but much smaller file.', code:'./llama-quantize \\\n  ./models/gemma-4-E4B-f16.gguf \\\n  ./models/gemma-4-E4B-Q3_K_S.gguf \\\n  Q3_K_S' },
+      { text:'Benchmark perplexity against the original.', code:'./llama-perplexity \\\n  -m ./models/gemma-4-E4B-Q5_K_M.gguf \\\n  -f ./wikitext-test.txt \\\n  -c 2048' },
+    ],
+    expected:'<strong>Q5_K_M</strong>: ~4.5 GB file, perplexity within ~0.5% of fp16. <strong>Q4_K_M</strong> (Google\'s default): ~3 GB, ~1–2% PPL loss. <strong>Q3_K_S</strong>: ~2.2 GB, noticeable quality drop (3–5% PPL loss, occasional reasoning failures).',
+    gotchas:[
+      'Always prefer <strong>google/gemma-4-E4B-QAT-GGUF</strong> over community Q4 quants when you can. QAT means the model was TRAINED knowing rounding would happen — it\'s just better at int4.',
+      'Don\'t quantize the RMSNorm weights. <code>llama-quantize</code> skips them by default; don\'t override.',
+    ],
+    nextUp:'mlx_lora',
+  },
+
+  {
+    id:'mlx_lora',
+    title:'MLX LoRA fine-tune on an Air',
+    emoji:'🎓',
+    stars:4,
+    time:'90 min',
+    hardware:'mac',
+    goal:'finetune',
+    analogy:'Re-training all of Gemma 4 would take dozens of GPUs. LoRA freezes the whole model and trains tiny "adapter" matrices (a few MB) bolted onto the attention and MLP projections. That\'s cheap enough to do on a MacBook Air. You pick a small dataset, hit train, and an hour later you have a model that speaks in your tone.',
+    prereqs:[
+      { id:'mlx', label:'MLX recipe (to verify MLX runs on your Mac)' },
+      '8 GB+ unified memory (16 GB more comfortable)',
+      'A JSONL training file (see step 2 for format)',
+    ],
+    touches:['local_attn','global_attn','mlp'],
+    steps:[
+      { text:'Install the LoRA extras.', code:'pip install mlx-lm datasets' },
+      { text:'Prepare a training dataset. Format: one JSON object per line with a <code>text</code> field. Minimum ~50 examples for a tone-adaptation LoRA; 500+ for anything more serious.', code:'# data/train.jsonl\n{"text": "### Instruction: Write a haiku about debugging.\\n### Response: Missing semicolon / Three hours of my life, gone now / The log stays silent"}\n{"text": "### Instruction: ...\\n### Response: ..."}\n\n# data/valid.jsonl (same format, 10% of examples)' },
+      { text:'Launch the LoRA trainer. Rank 16 is a good default for small datasets.', code:'mlx_lm.lora \\\n  --model mlx-community/gemma-4-E4B-4bit \\\n  --train \\\n  --data ./data \\\n  --iters 600 \\\n  --batch-size 1 \\\n  --lora-layers 16 \\\n  --learning-rate 1e-4 \\\n  --adapter-path ./my-adapter' },
+      { text:'Test the fine-tuned model by loading the base + your adapter.', code:'mlx_lm.generate \\\n  --model mlx-community/gemma-4-E4B-4bit \\\n  --adapter-path ./my-adapter \\\n  --prompt "### Instruction: Write a haiku about CSS.\\n### Response:" \\\n  --max-tokens 80' },
+    ],
+    expected:'Training: ~60–90 min on an M2 Air (8 GB), ~30 min on an M3 Pro. Final adapter: ~12 MB file. Generation with the adapter: essentially the same speed as the base model — LoRA is nearly free at inference time.',
+    gotchas:[
+      'On 8 GB Macs, close Chrome before training. Seriously. Every tab costs you.',
+      'Do NOT include <code>embed_tokens</code> or the PLE tables in your target modules — it\'ll blow up memory and corrupt Google\'s multilingual pretraining.',
+      'If your loss diverges (goes up instead of down), your learning rate is too high. Drop to <code>5e-5</code>.',
+    ],
+    nextUp:'export_gguf',
+  },
+
+  {
+    id:'unsloth',
+    title:'Unsloth QLoRA fine-tune',
+    emoji:'🎓',
+    stars:4,
+    time:'90 min',
+    hardware:'cuda',
+    goal:'finetune',
+    analogy:'The NVIDIA equivalent of the MLX LoRA recipe. Unsloth patches HuggingFace Transformers with custom CUDA kernels — it\'s 2–5× faster than vanilla PEFT and uses ~40% less VRAM. If you have any NVIDIA GPU from an RTX 3060 upward, this is the fastest path to a fine-tune.',
+    prereqs:[
+      'NVIDIA GPU with ≥12 GB VRAM (RTX 3060 12 GB works)',
+      'CUDA 12.x toolkit + recent nvidia-driver',
+      'Python 3.10+',
+    ],
+    touches:['local_attn','global_attn','mlp'],
+    steps:[
+      { text:'Install Unsloth.', code:'pip install "unsloth[cu121] @ git+https://github.com/unslothai/unsloth.git"' },
+      { text:'Minimal training script — save as <code>train.py</code>:', code:'from unsloth import FastLanguageModel\nimport torch\nfrom trl import SFTTrainer\nfrom transformers import TrainingArguments\nfrom datasets import load_dataset\n\nmodel, tokenizer = FastLanguageModel.from_pretrained(\n    model_name="unsloth/gemma-4-E4B-bnb-4bit",\n    max_seq_length=2048,\n    load_in_4bit=True,\n)\n\nmodel = FastLanguageModel.get_peft_model(\n    model,\n    r=16,\n    target_modules=["q_proj","k_proj","v_proj","o_proj",\n                    "gate_proj","up_proj","down_proj"],\n    lora_alpha=16,\n    use_gradient_checkpointing="unsloth",\n)\n\ndataset = load_dataset("json", data_files="data/train.jsonl", split="train")\n\ntrainer = SFTTrainer(\n    model=model, tokenizer=tokenizer,\n    train_dataset=dataset, dataset_text_field="text",\n    max_seq_length=2048,\n    args=TrainingArguments(\n        per_device_train_batch_size=2,\n        gradient_accumulation_steps=4,\n        warmup_steps=10,\n        max_steps=600,\n        learning_rate=2e-4,\n        fp16=not torch.cuda.is_bf16_supported(),\n        bf16=torch.cuda.is_bf16_supported(),\n        logging_steps=10,\n        output_dir="./outputs",\n    ),\n)\n\ntrainer.train()\nmodel.save_pretrained("my-adapter")' },
+      { text:'Run it.', code:'python train.py' },
+      { text:'Note the <code>target_modules</code> list — these are exactly the attention and MLP projections. <strong>Nothing from PLE or the embedding table</strong>, deliberately.' },
+    ],
+    expected:'Training speed: ~3–4× faster than vanilla PEFT on the same GPU. VRAM usage on a 12 GB GPU: ~8–10 GB during training with the defaults above. Final adapter: ~20 MB.',
+    gotchas:[
+      'If you see <code>CUDA out of memory</code>, drop <code>per_device_train_batch_size</code> to 1 first, then halve <code>max_seq_length</code>.',
+      'bf16 requires Ampere (RTX 30xx) or newer. On older cards, stick with fp16.',
+      'Unsloth is CUDA-only as of April 2026 — no ROCm or Metal support. Mac users: use the previous recipe.',
+    ],
+    nextUp:'export_gguf',
+  },
+
+  {
+    id:'export_gguf',
+    title:'Export your LoRA to GGUF',
+    emoji:'📦',
+    stars:3,
+    time:'20 min',
+    hardware:'all',
+    goal:'finetune',
+    analogy:'After training you have a LoRA adapter in MLX or PyTorch format. To use it in llama.cpp (and therefore Ollama, LM Studio, phone apps...) you need to merge or export to GGUF. This recipe does both: a quick merge-and-ship, and a keep-it-separate-for-swapping option.',
+    prereqs:[
+      { id:'mlx_lora', label:'An MLX LoRA adapter' },
+      'OR',
+      { id:'unsloth', label:'An Unsloth LoRA adapter' },
+    ],
+    touches:['mlp','local_attn','global_attn'],
+    steps:[
+      { text:'<strong>Option A — merge and ship as a single GGUF.</strong> From an Unsloth script:', code:'# append to train.py after trainer.train()\nmodel.save_pretrained_merged(\n    "merged-model",\n    tokenizer,\n    save_method="merged_16bit",\n)\nmodel.save_pretrained_gguf(\n    "merged-model",\n    tokenizer,\n    quantization_method="q4_k_m",\n)' },
+      { text:'<strong>Option B — convert an MLX adapter to GGUF LoRA format (keeps it separate, hot-swappable).</strong>', code:'# Fuse into the base model first\nmlx_lm.fuse \\\n  --model mlx-community/gemma-4-E4B-4bit \\\n  --adapter-path ./my-adapter \\\n  --save-path ./fused-model\n\n# Then convert with llama.cpp\'s converter\npython llama.cpp/convert_hf_to_gguf.py ./fused-model \\\n  --outtype f16 --outfile ./my-gemma4-lora.gguf\n\n./llama.cpp/llama-quantize \\\n  ./my-gemma4-lora.gguf \\\n  ./my-gemma4-lora-Q4_K_M.gguf Q4_K_M' },
+      { text:'Run the result with llama.cpp or Ollama.', code:'./llama-cli -m ./my-gemma4-lora-Q4_K_M.gguf -p "test the fine-tune" -ngl 99' },
+      { text:'To load it in Ollama: create a <code>Modelfile</code>.', code:'cat > Modelfile <<EOF\nFROM ./my-gemma4-lora-Q4_K_M.gguf\nTEMPLATE """### Instruction: {{ .Prompt }}\n### Response: """\nEOF\n\nollama create my-gemma4 -f Modelfile\nollama run my-gemma4' },
+    ],
+    expected:'A ~3 GB GGUF file that behaves exactly like base Gemma 4 E4B but trained on your data. Works in every llama.cpp-based runtime: Ollama, LM Studio, llama.cpp itself, phone apps like PocketPal, etc.',
+    gotchas:[
+      'If you forgot <code>save_method="merged_16bit"</code> in Unsloth, you\'ll merge in 4-bit and lose quality — always merge in 16-bit, quantize afterward.',
+      'Ollama\'s <code>Modelfile</code> TEMPLATE must match the prompt format you trained on, otherwise the model responds like it\'s still seeing raw instruction-tuning data.',
+    ],
+    nextUp:'prune_vocab',
+  },
+
+  {
+    id:'prune_vocab',
+    title:'Prune unused vocabulary',
+    emoji:'🗜️',
+    stars:5,
+    time:'2 hrs',
+    hardware:'all',
+    goal:'quant',
+    analogy:'Gemma 4 knows 262K tokens because it speaks 140+ languages. If you only need English, ~60% of those vocab rows are dead weight taking up space on disk and in the embedding lookup. This is an experimental recipe: you identify which tokens never appear in your target corpus and zero out their rows, then re-quantize.',
+    prereqs:[
+      { id:'custom_quant', label:'Custom quantization recipe' },
+      'Python + sentencepiece + a ~100 MB corpus of your target language',
+      '<strong>Willingness to break things.</strong> This is experimental.',
+    ],
+    touches:['tok_emb','output_head'],
+    steps:[
+      { text:'Tokenize your corpus and record token frequencies.', code:'import sentencepiece as spm\nfrom collections import Counter\n\nsp = spm.SentencePieceProcessor(\n    model_file="google/gemma-4-E4B/tokenizer.model"\n)\ncounts = Counter()\nfor line in open("english-corpus.txt"):\n    counts.update(sp.encode(line, out_type=int))\n\n# Tokens that appeared at least once\nused = set(counts.keys())\nprint(f"Used {len(used)} / 262144 tokens ({len(used)/262144:.1%})")' },
+      { text:'Identify unused rows and zero them out in the embedding matrix.', code:'import torch\nfrom transformers import AutoModelForCausalLM\n\nmodel = AutoModelForCausalLM.from_pretrained(\n    "google/gemma-4-E4B", torch_dtype=torch.bfloat16\n)\nemb = model.get_input_embeddings().weight\n\n# Keep special tokens (0-255) + frequently used\nkeep = set(range(256)) | used\nmask = torch.zeros(262144, dtype=torch.bool)\nmask[list(keep)] = True\nemb.data[~mask] = 0  # zero unused rows\n\nmodel.save_pretrained("./gemma4-en-pruned")' },
+      { text:'Convert to GGUF and quantize. The zeroed rows compress trivially under zstd (GGUF\'s internal compression).', code:'python llama.cpp/convert_hf_to_gguf.py ./gemma4-en-pruned \\\n  --outtype f16 --outfile ./gemma4-en-f16.gguf\n./llama.cpp/llama-quantize \\\n  ./gemma4-en-f16.gguf ./gemma4-en-Q4_K_M.gguf Q4_K_M' },
+      { text:'Benchmark on your English-only workload. Any regression? (There usually is, but often small.)' },
+    ],
+    expected:'File size reduction: ~15–25% (from ~3 GB to ~2.3 GB on E4B Q4_K_M). Quality on English tasks: typically <0.5% PPL delta. Quality on non-English tasks: <strong>catastrophic</strong> — the model forgets languages whose tokens you zeroed.',
+    gotchas:[
+      'This is a <strong>one-way operation</strong>. Keep the original weights.',
+      'Don\'t zero BPE sub-tokens that might appear in English-looking input you haven\'t seen yet (e.g. "café"). Safer: keep the top ~100K most frequent tokens regardless.',
+      'The <strong>output head</strong> is tied to the embedding table, so zeroing affects both reading and writing simultaneously.',
+    ],
+    nextUp:'global_only_lora',
+  },
+
+  {
+    id:'global_only_lora',
+    title:'Global-layer-only LoRA',
+    emoji:'🎯',
+    stars:5,
+    time:'3 hrs',
+    hardware:'cuda',
+    goal:'finetune',
+    analogy:'Research-grade experiment. Instead of adapting every attention layer, you ONLY train LoRA on the global-attention layers (every 6th layer). The hypothesis: long-range reasoning lives in those layers, so fine-tuning just those is enough to reshape high-level behavior at 1/6 the adapter size.',
+    prereqs:[
+      { id:'unsloth', label:'Unsloth recipe' },
+      'NVIDIA GPU with ≥16 GB VRAM',
+      'Patience: this is exploratory, not a guaranteed win',
+    ],
+    touches:['global_attn'],
+    steps:[
+      { text:'First, identify the global-attention layer indices. In E4B they\'re every 6th layer of 34: [5, 11, 17, 23, 29].', code:'from transformers import AutoConfig\ncfg = AutoConfig.from_pretrained("google/gemma-4-E4B")\n# Gemma 4 config exposes sliding_window_pattern\nprint(cfg.sliding_window_pattern)  # e.g. [False]*5 + [True]\n\n# Global layers in E4B (34 total): indices where sliding=False\nglobal_layers = [i for i in range(cfg.num_hidden_layers)\n                 if (i + 1) % 6 == 0]\nprint("Global layers:", global_layers)' },
+      { text:'In Unsloth, use <code>layers_to_transform</code> to restrict LoRA to those layer indices.', code:'model = FastLanguageModel.get_peft_model(\n    model,\n    r=32,  # higher rank since fewer layers\n    target_modules=["q_proj","k_proj","v_proj","o_proj"],\n    layers_to_transform=[5, 11, 17, 23, 29],\n    lora_alpha=32,\n    use_gradient_checkpointing="unsloth",\n)' },
+      { text:'Train as usual. The adapter will be ~1/6 the size of a full-coverage LoRA.' },
+      { text:'Compare against a full-coverage LoRA on the SAME dataset. Does global-only match it on long-document tasks? Does it fall behind on sentence-level style?' },
+    ],
+    expected:'Final adapter: ~3–4 MB (vs ~20 MB for full coverage). <strong>Long-range reasoning tasks</strong> (summarize this 50-page document, find the contradiction on page 12) typically hold up. <strong>Short-range style tasks</strong> (adopt a specific tone, match a formatting pattern) often degrade — that behavior lives in the local layers you didn\'t touch.',
+    gotchas:[
+      'This is a research direction, not a tested production recipe. Your dataset size and layer-count may need adjustment — Gemma 4 E4B has 34 layers, E2B has 26.',
+      'If the dataset has mostly short examples, global-only LoRA will underperform full-coverage LoRA. It pays off on long-context tasks specifically.',
+      'Hypothesis worth testing: combine global-only LoRA with the p-RoPE context-extension recipe. You might get a model that\'s specialized for long documents.',
+    ],
+    nextUp:'belief_memory',
+  },
+
+  {
+    id:'belief_memory',
+    title:'Belief layer + separate episodic memory',
+    emoji:'🧠',
+    stars:4,
+    time:'2–3 hrs',
+    hardware:'all',
+    goal:'augment',
+    analogy:'At runtime, "beliefs" and "memories" are both just tokens that arrive in Gemma\'s context window — the model literally cannot tell its own weights from a cleverly formatted prompt. So the difference between the two isn\'t anything inside the model; it\'s bookkeeping. Beliefs get written rarely, by hand, and are always injected. Memories get written often, automatically, and are retrieved by relevance. Same substrate, four different knobs: <strong>write policy, retrieval policy, format, and conflict resolution</strong>. Pin those four and a persistent "self" falls out of the scaffolding above a frozen model.',
+    prereqs:[
+      { id:'ollama', label:'Ollama recipe (the belief layer talks to Gemma via Ollama\'s HTTP API)' },
+      'Python 3.10+',
+      '<code>pip install sentence-transformers numpy pyyaml requests</code>',
+      'A willingness to think carefully about what belongs in beliefs vs. memory',
+    ],
+    touches:['prompt_wrapper'],
+    steps:[
+      { text:'<strong>Understand the split before you write a line of code.</strong> Beliefs are <em>declarative and always-on</em>: "I am an assistant running locally", "the user prefers terse answers", "today is April 2026". Memories are <em>episodic and retrieved</em>: "on 2026-04-05 the user said they\'re debugging a Python async bug", "on 2026-04-02 the user asked about PLE". Beliefs shape identity and priors; memories provide specific recall. Conflict rule: beliefs override memory; newer memory shades older memory.' },
+      { text:'Create <code>beliefs.yaml</code>. Keep it small — every line is always in every prompt, so it eats your context budget.', code:'# beliefs.yaml\nidentity:\n  - I am an assistant powered by Gemma 4 E4B running locally on the user\'s machine.\n  - I have no tools beyond what the user explicitly invokes in the chat.\n  - I can be wrong. When I am uncertain, I say so rather than guessing.\n\nuser:\n  - The user is a software engineer learning LLM internals hands-on.\n  - The user is running an 8 GB MacBook Air and cares about what fits locally.\n\npreferences:\n  - Give terse answers by default. Expand only when asked.\n  - Prefer concrete examples and commands over abstract explanations.\n  - Never produce a multi-paragraph summary at the end of a response.\n\nworld_model:\n  - Today\'s date is 2026-04-06.\n  - Gemma 4 was released on 2026-04-03 under Apache 2.0.' },
+      { text:'Write <code>gemma_mind.py</code> — the belief + memory layer. This is the whole thing: SQLite for memory, MiniLM for embeddings, Ollama for generation.', code:'# gemma_mind.py\nimport json, sqlite3, time, yaml\nfrom pathlib import Path\nfrom sentence_transformers import SentenceTransformer\nimport numpy as np\nimport requests\n\nBELIEFS_PATH = Path("beliefs.yaml")\nMEMORY_DB    = Path("memory.db")\nOLLAMA_URL   = "http://localhost:11434/api/chat"\nMODEL        = "gemma4:e4b"\nEMBED_MODEL  = "sentence-transformers/all-MiniLM-L6-v2"\nTOP_K        = 5\n\nembedder = SentenceTransformer(EMBED_MODEL)\n\n# ─── storage ────────────────────────────────────────────────\ndef load_beliefs():\n    if not BELIEFS_PATH.exists(): return {}\n    return yaml.safe_load(BELIEFS_PATH.read_text()) or {}\n\ndef init_memory():\n    conn = sqlite3.connect(MEMORY_DB)\n    conn.execute("""\n        CREATE TABLE IF NOT EXISTS memories (\n            id INTEGER PRIMARY KEY,\n            ts REAL,\n            text TEXT,\n            tags TEXT,\n            embedding BLOB\n        )\n    """)\n    return conn\n\ndef remember(conn, text, tags=""):\n    emb = embedder.encode(text).astype(np.float32).tobytes()\n    conn.execute(\n        "INSERT INTO memories(ts,text,tags,embedding) VALUES (?,?,?,?)",\n        (time.time(), text, tags, emb),\n    )\n    conn.commit()\n\ndef recall(conn, query, k=TOP_K):\n    q = embedder.encode(query).astype(np.float32)\n    rows = conn.execute("SELECT ts,text,embedding FROM memories").fetchall()\n    scored = []\n    for ts, text, emb_blob in rows:\n        emb = np.frombuffer(emb_blob, dtype=np.float32)\n        sim = float(np.dot(q, emb) / (np.linalg.norm(q)*np.linalg.norm(emb) + 1e-8))\n        scored.append((sim, ts, text))\n    scored.sort(reverse=True)\n    return scored[:k]\n\n# ─── prompt assembly ────────────────────────────────────────\ndef format_beliefs(beliefs):\n    if not beliefs: return ""\n    out = ["# BELIEFS (persistent, treat as ground truth about yourself and the user):"]\n    for section, items in beliefs.items():\n        out.append(f"\\n## {section}")\n        if isinstance(items, list):\n            for i in items: out.append(f"- {i}")\n        else:\n            out.append(str(items))\n    return "\\n".join(out)\n\ndef format_memories(memories):\n    if not memories: return ""\n    out = ["# RECALLED MEMORIES (episodic, from prior conversations; may be incomplete):"]\n    for sim, ts, text in memories:\n        date = time.strftime("%Y-%m-%d", time.localtime(ts))\n        out.append(f"- [{date}, relevance {sim:.2f}] {text}")\n    return "\\n".join(out)\n\ndef build_system(beliefs, memories):\n    parts = [format_beliefs(beliefs), format_memories(memories)]\n    return "\\n\\n".join(p for p in parts if p)\n\n# ─── chat ───────────────────────────────────────────────────\ndef chat(system, user_msg, history):\n    messages = [{"role":"system","content":system}] + history + \\\n               [{"role":"user","content":user_msg}]\n    r = requests.post(OLLAMA_URL,\n                      json={"model":MODEL,"messages":messages,"stream":False})\n    return r.json()["message"]["content"]\n\n# ─── main loop ──────────────────────────────────────────────\ndef main():\n    beliefs = load_beliefs()\n    conn    = init_memory()\n    history = []\n    print(f"Loaded {sum(len(v) if isinstance(v,list) else 1 for v in beliefs.values())} beliefs. "\n          f"Commands: /remember TEXT | /recall QUERY | /quit")\n    while True:\n        try:\n            user = input("you> ").strip()\n        except (EOFError, KeyboardInterrupt):\n            break\n        if not user: continue\n        if user == "/quit": break\n        if user.startswith("/remember "):\n            remember(conn, user[len("/remember "):].strip(), tags="manual")\n            print("  [noted]"); continue\n        if user.startswith("/recall "):\n            for sim, ts, t in recall(conn, user[len("/recall "):].strip()):\n                date = time.strftime("%Y-%m-%d", time.localtime(ts))\n                print(f"  [{sim:.2f} {date}] {t}")\n            continue\n        hits    = recall(conn, user)\n        system  = build_system(beliefs, hits)\n        reply   = chat(system, user, history)\n        print(f"gemma> {reply}")\n        history.append({"role":"user","content":user})\n        history.append({"role":"assistant","content":reply})\n        history = history[-20:]  # cap\n\nif __name__ == "__main__":\n    main()' },
+      { text:'First run. Ollama must already be serving <code>gemma4:e4b</code> from Recipe 1.', code:'python gemma_mind.py' },
+      { text:'Seed some memories manually and watch them come back next time you ask something related.', code:'you> /remember The user\'s project is called pgolf-explorer and lives in ~/Code/pgolf-explorer.\nyou> /remember The user is working on hacks.html, a recipe cookbook for tinkering with Gemma 4 locally.\nyou> /quit\n\n# later, new session:\npython gemma_mind.py\nyou> what was I working on last?' },
+      { text:'<strong>Optional: add an auto-writer.</strong> After each turn, ask Gemma itself whether anything in the user\'s message is worth remembering. Add this between the reply and the history append:', code:'# inside main(), after `reply = chat(...)`:\nEXTRACT_SYS = (\n    "Extract ONE durable fact from the user\'s last message that would be "\n    "worth remembering in a week. Reply with just the fact as a single "\n    "sentence, or exactly \'NONE\' if nothing is worth remembering."\n)\nextract = chat(EXTRACT_SYS, user, [])\nif extract.strip().upper() != "NONE":\n    remember(conn, extract.strip(), tags="auto")\n    print(f"  [auto-remembered: {extract.strip()}]")' },
+      { text:'<strong>Optional: periodic compaction.</strong> Every N memories, ask Gemma to merge similar ones. Run this as a separate script, not in the main loop:', code:'# compact.py\nimport sqlite3, time, requests\nfrom pathlib import Path\n\nconn = sqlite3.connect("memory.db")\nrows = conn.execute("SELECT id, text FROM memories ORDER BY ts").fetchall()\nif len(rows) < 50:\n    print("Nothing to compact yet."); exit()\n\nbatch = "\\n".join(f"- {t}" for _, t in rows)\nprompt = (\n    "You are given a list of episodic memories. Merge duplicates and "\n    "near-duplicates into one terse line each. Preserve concrete facts "\n    "(dates, names, project paths). Reply with a YAML list, one item per "\n    f"line, no preamble.\\n\\n{batch}"\n)\nr = requests.post("http://localhost:11434/api/chat",\n    json={"model":"gemma4:e4b",\n          "messages":[{"role":"user","content":prompt}],\n          "stream":False})\nprint(r.json()["message"]["content"])\n# Manually review, then archive memory.db and rebuild from the compacted list.' },
+    ],
+    expected:'A chat loop where: (a) your beliefs from <code>beliefs.yaml</code> persist across sessions and the model behaves consistently with them, (b) facts you <code>/remember</code> in one session come back automatically when you ask a related question weeks later, (c) you can <strong>inspect and edit everything by hand</strong> because it\'s all plain files (<code>beliefs.yaml</code>, <code>memory.db</code>). Storage cost: ~400 bytes per memory. Retrieval cost: ~30 ms per turn at 1000 memories on CPU.',
+    gotchas:[
+      '<strong>Belief rot.</strong> If <code>beliefs.yaml</code> grows past ~30 lines, beliefs start contradicting each other and the model gets confused. Prune ruthlessly.',
+      '<strong>Memory bloat.</strong> Past ~500 memories, naive cosine retrieval starts dragging up irrelevant matches. Run the compaction script or add a date-decay factor to the score.',
+      '<strong>The model cannot enforce its own beliefs.</strong> It will still cheerfully contradict <code>beliefs.yaml</code> if the user presses it. Beliefs are a <em>prior</em>, not a <em>constraint</em>. If you need hard constraints, put them in application code that post-processes the reply.',
+      '<strong>Format matters more than you\'d think.</strong> Without the clear <code># BELIEFS</code> and <code># RECALLED MEMORIES</code> headers, Gemma may treat retrieved memories as instructions from the user and do what they "say" instead of using them as context.',
+      '<strong>Don\'t embed memories with Gemma itself.</strong> It\'s tempting but ~100× slower than MiniLM. Use the small embedder; save Gemma for generation.',
+      '<strong>Privacy.</strong> <code>memory.db</code> accumulates everything you ever told it. Decide your retention policy before you start writing things you\'d regret.',
+      '<strong>Do NOT set <code>num_predict</code> in the Ollama request options.</strong> Gemma 4 generates hidden reasoning tokens before visible output; a low cap (80, 120, etc.) consumes them all during internal thought and the assistant reply ends up as an empty string. Observed in testing on April 2026. Either leave <code>num_predict</code> unset or use ≥400.',
+    ],
+    nextUp:'belief_lora',
+  },
+
+  {
+    id:'belief_lora',
+    title:'Distill belief+memory into a LoRA',
+    emoji:'⚗️',
+    stars:5,
+    time:'4+ hrs',
+    hardware:'mac',
+    goal:'augment',
+    analogy:'The natural follow-on to the previous recipe — and the exact point where your "content and form" observation stops being philosophical and becomes an algorithm. After a few weeks of accumulated beliefs and memories, you can <strong>bake them into the weights</strong>: generate synthetic Q&A pairs where the answers embody your beliefs/memories, then train a LoRA on those pairs. Runtime-wrapped knowledge becomes trained-in knowledge. The line between "prompt" and "parameter" dissolves.',
+    prereqs:[
+      { id:'belief_memory', label:'Belief layer + memory recipe (you need accumulated data)' },
+      { id:'mlx_lora', label:'MLX LoRA recipe (or Unsloth equivalent)' },
+      'At least ~200 memories accumulated over real use',
+    ],
+    touches:['mlp','local_attn','global_attn'],
+    steps:[
+      { text:'Export your beliefs and memories as a single context blob.', code:'python -c "\nimport yaml, sqlite3\nb = yaml.safe_load(open(\'beliefs.yaml\').read())\nmems = sqlite3.connect(\'memory.db\').execute(\'SELECT text FROM memories\').fetchall()\nprint(\'BELIEFS:\', yaml.dump(b))\nprint(\'MEMORIES:\')\nfor (m,) in mems: print(\'-\', m)\n" > context.txt' },
+      { text:'Generate synthetic instruction/response pairs using Gemma itself. The prompt: "given this context, write 5 Q&A pairs that someone who internalized it would answer correctly".', code:'# synth.py\nimport requests, json, random\n\nctx = open("context.txt").read()\nN_ROUNDS = 40  # 40 × 5 = 200 training pairs\npairs = []\n\nfor i in range(N_ROUNDS):\n    r = requests.post("http://localhost:11434/api/chat", json={\n        "model":"gemma4:e4b",\n        "messages":[{"role":"user","content":\n            f"Context about a specific user and their project:\\n\\n{ctx}\\n\\n"\n            "Generate exactly 5 realistic Q&A pairs that someone who had "\n            "fully internalized this context would answer correctly. "\n            "Format: one JSON object per line with \\"instruction\\" and "\n            "\\"response\\" keys. No preamble, no markdown, just JSONL."}],\n        "stream":False,\n    })\n    for line in r.json()["message"]["content"].splitlines():\n        line = line.strip()\n        if line.startswith("{") and line.endswith("}"):\n            pairs.append(line)\n    print(f"round {i+1}/{N_ROUNDS}: {len(pairs)} pairs total")\n\nwith open("data/train.jsonl","w") as f:\n    random.shuffle(pairs)\n    for p in pairs[:-20]: f.write(p+"\\n")\nwith open("data/valid.jsonl","w") as f:\n    for p in pairs[-20:]: f.write(p+"\\n")' },
+      { text:'Convert to the format MLX LoRA expects (the <code>text</code> field). MLX uses a different schema than raw instruction pairs.', code:'python -c "\nimport json\nfor split in [\'train\',\'valid\']:\n    lines = open(f\'data/{split}.jsonl\').readlines()\n    with open(f\'data/{split}.jsonl\',\'w\') as f:\n        for l in lines:\n            d = json.loads(l)\n            txt = f\'### Instruction: {d[\\\"instruction\\\"]}\\\\n### Response: {d[\\\"response\\\"]}\'\n            f.write(json.dumps({\\\"text\\\":txt})+\'\\\\n\')\n"' },
+      { text:'Train exactly as in Recipe 7. Use rank 8 since this is a narrow, specific behavior change.', code:'mlx_lm.lora \\\n  --model mlx-community/gemma-4-E4B-4bit \\\n  --train --data ./data \\\n  --iters 800 --batch-size 1 \\\n  --lora-layers 16 --learning-rate 5e-5 \\\n  --adapter-path ./belief-adapter' },
+      { text:'Test without loading beliefs.yaml or memory.db. If the LoRA worked, Gemma should still answer consistently with your baked-in context.', code:'mlx_lm.generate \\\n  --model mlx-community/gemma-4-E4B-4bit \\\n  --adapter-path ./belief-adapter \\\n  --prompt "### Instruction: What project am I working on?\\n### Response:" \\\n  --max-tokens 80' },
+    ],
+    expected:'A ~10 MB adapter that makes Gemma behave like it has internalized your beliefs and memories, without needing the Python wrapper at inference time. Quality will be noticeably worse than the runtime wrapper for specific factual recall (distillation lossiness), but better for style, tone, and implicit priors. You now have the same knowledge in <strong>two forms</strong>: plain files and trained weights.',
+    gotchas:[
+      '<strong>This is genuinely experimental.</strong> Synthetic data quality caps the whole process; garbage Q&A pairs make a garbage LoRA.',
+      'Keep the runtime belief+memory system running too. The LoRA captures <em>stable</em> priors; the wrapper captures <em>new</em> facts. They complement, they don\'t replace.',
+      'Don\'t delete <code>beliefs.yaml</code> or <code>memory.db</code> after baking — you\'ll want to regenerate the LoRA periodically as your beliefs evolve.',
+      'Philosophical gotcha: a model that has <em>trained on</em> "I am an assistant running locally on the user\'s Air" does not actually know this. It just has a statistical tendency to say it. The belief layer wrapper is more honest in that sense.',
+    ],
+    nextUp:'belief_dag_spec',
+  },
+
+  {
+    id:'belief_dag_spec',
+    title:'Hierarchical belief DAG — portable spec',
+    emoji:'📐',
+    stars:5,
+    time:'design phase',
+    hardware:'all',
+    goal:'augment',
+    analogy:'The Python code in the next recipe is ONE implementation of this spec. <strong>This recipe is the design doc</strong> — portable to any language that can call SQLite, do float32 dot products, and make HTTP requests. If you want to implement the belief DAG in Mojo, Rust, Zig, C, or Swift, start here: the data model, the four invariants, and the algorithms are language-neutral. Only the embedding backend and a few FFI details change. Think of it as an RFC; Recipe 14b is the reference implementation.',
+    prereqs:[
+      { id:'belief_memory', label:'Belief layer + memory (the flat version this extends)' },
+      'Comfort reading pseudocode and SQL',
+      'A target language in mind (examples given for Python, Mojo, Rust)',
+    ],
+    touches:['prompt_wrapper'],
+    steps:[
+      { text:'<strong>Freeze the data model as a language-neutral wire format.</strong> Two structs: <code>Node</code> and <code>Edge</code>. Fixed widths, explicit byte layouts, no language-specific types. This is what lets a Python implementation and a Mojo implementation read each other\'s SQLite files.', code:'# Node\n  id          bytes[16]       BLAKE2b-128(level || text)    content-addressable\n  level       uint8           0..15\n  kind        uint8           0=episode 1=obs 2=trait 3=theme 4=identity\n  text        utf-8 string\n  confidence  float32         0..1\n  created_at  int64           unix milliseconds\n  last_seen   int64           unix milliseconds\n  embedding   float32[384]    MiniLM-L6-v2 output dimension\n  tombstone   uint8           0 or 1 (logical delete)\n\n# Edge\n  src         bytes[16]       FK → Node.id\n  dst         bytes[16]       FK → Node.id\n  predicate   uint8           0=derived_from 1=supports 2=contradicts 3=specializes 4=supersedes\n  weight      float32         0..1\n  created_at  int64           unix milliseconds\n\n# Primary key: (src, dst, predicate)' },
+      { text:'<strong>Why content-addressable IDs matter for portability.</strong> Node ID is <code>BLAKE2b-128(level || text)</code>, not autoincrement. Three reasons: (1) two independent processes that ingest the same fact produce the same ID, (2) you can merge two DAGs by set-union without renumbering, (3) autoincrement is a Python/ORM habit that breaks cross-language interop. BLAKE2 has first-class libraries in Python (<code>hashlib</code>), Rust (<code>blake2</code>), Mojo (via <code>libblake2</code> FFI), and Swift (CryptoKit).' },
+      { text:'<strong>Storage substrate: pick SQLite unless you have a strong reason not to.</strong>', code:'| Substrate      | Lang support         | Vector search | Graph queries   | Verdict          |\n|----------------|----------------------|---------------|-----------------|------------------|\n| SQLite         | universal (C API)    | manual        | recursive CTE   | DEFAULT          |\n| DuckDB         | Py/C++/Rust/Go/JS    | built-in      | recursive CTE   | good if supported|\n| LMDB           | universal (C API)    | manual        | manual walk     | fastest, no SQL  |\n| sled           | Rust only            | manual        | manual walk     | skip if multi-lang|\n| JSON + mmap    | universal            | manual        | manual walk     | OK for <1K nodes |\n\n# For Mojo specifically: SQLite C API + Mojo FFI. Cosine similarity\n# as a SIMD[DType.float32, 384] dot product. Mojo excels at this.' },
+      { text:'<strong>Create the schema. Portable SQL — works on any SQLite.</strong>', code:'CREATE TABLE IF NOT EXISTS nodes (\n  id         BLOB PRIMARY KEY,    -- 16-byte BLAKE2b digest\n  level      INTEGER NOT NULL,\n  kind       INTEGER NOT NULL,\n  text       TEXT NOT NULL,\n  confidence REAL NOT NULL DEFAULT 1.0,\n  created_at INTEGER NOT NULL,\n  last_seen  INTEGER NOT NULL,\n  embedding  BLOB NOT NULL,       -- float32 * 384 = 1536 bytes\n  tombstone  INTEGER NOT NULL DEFAULT 0\n);\n\nCREATE TABLE IF NOT EXISTS edges (\n  src        BLOB NOT NULL,\n  dst        BLOB NOT NULL,\n  predicate  INTEGER NOT NULL,\n  weight     REAL NOT NULL DEFAULT 1.0,\n  created_at INTEGER NOT NULL,\n  PRIMARY KEY (src, dst, predicate),\n  FOREIGN KEY (src) REFERENCES nodes(id),\n  FOREIGN KEY (dst) REFERENCES nodes(id)\n);\n\nCREATE INDEX IF NOT EXISTS nodes_level_idx ON nodes(level) WHERE tombstone=0;\nCREATE INDEX IF NOT EXISTS edges_src_idx ON edges(src);\nCREATE INDEX IF NOT EXISTS edges_dst_idx ON edges(dst);\n\nPRAGMA journal_mode = WAL;          -- required for multi-process access\nPRAGMA foreign_keys = ON;' },
+      { text:'<strong>Invariant A: no cycles in <code>derived_from</code>.</strong> Implement as a SQL recursive CTE. Every SQLite binding supports this; you do NOT need to write DFS in application code.', code:'# SQL (portable — runs in any language that can call SQLite)\nWITH RECURSIVE ancestors(id) AS (\n  SELECT dst FROM edges\n    WHERE src = :parent_id AND predicate = 0    -- 0 = derived_from\n  UNION\n  SELECT e.dst FROM edges e JOIN ancestors a ON e.src = a.id\n    WHERE e.predicate = 0\n)\nSELECT 1 FROM ancestors WHERE id = :new_node_id LIMIT 1;\n\n# Run this query once for each parent in the new node\'s derived_from list.\n# If ANY query returns a row, REJECT the insert — it would create a cycle.\n# Complexity: O(|reachable ancestors|) per parent. Fast in practice.' },
+      { text:'<strong>Invariant B: monotonic levels.</strong> Pure function, trivial in any language.', code:'fn check_level(new_level, parent_ids):\n    if parent_ids is empty:\n        return new_level == 0        # only level-0 may have no parents\n    parent_levels = [level_of(p) for p in parent_ids]\n    required = max(parent_levels) + 1\n    return new_level == required\n\n# Complexity: O(|parents|). In Mojo/Rust, this is a plain loop over a small slice.\n# Purpose: prevents "lateral abstraction creep" where level-3 nodes derive\n# from other level-3 nodes without real evidence bubbling up from level 0.' },
+      { text:'<strong>Invariant C: grounding audit.</strong> Every non-leaf must trace to a level-0 episode within K hops. Run periodically (nightly), NOT per-insert — this is the one invariant you check offline.', code:'fn audit_grounding(K=5):\n    orphans = []\n    for node in active_nodes where level >= 1:\n        if not traces_to_level_0(node, max_depth=K):\n            orphans.append(node)\n    return orphans\n\nfn traces_to_level_0(start, max_depth):\n    # BFS along derived_from edges\n    frontier = [(start, 0)]\n    seen = empty_set\n    while frontier not empty:\n        (cur, depth) = frontier.pop()\n        if cur in seen or depth > max_depth: continue\n        seen.add(cur)\n        if level_of(cur) == 0: return true\n        for kid in derived_from_children(cur):\n            frontier.append((kid, depth + 1))\n    return false' },
+      { text:'<strong>Invariant D: contradiction detection.</strong> The hardest to port because it needs an NLI (natural language inference) check. Two backends: call Gemma as an NLI classifier (portable, slow) or use a dedicated NLI model via ONNX (fast, needs another ~86 MB model). The pseudocode is the same; only the <code>nli_contradicts()</code> call differs.', code:'fn check_contradiction(new_text, new_embedding, new_level):\n    # Find near-duplicates at the SAME level (cheap filter)\n    candidates = cosine_topk(new_embedding,\n                             filter_level=new_level,\n                             k=5)\n    for (other_id, other_text, sim) in candidates:\n        if sim < 0.85: continue                # not similar enough to conflict\n        if nli_contradicts(new_text, other_text):\n            return CONFLICT(other_id)          # caller must resolve\n    return OK\n\n# nli_contradicts backends:\n#   - Python: HTTP to Ollama with a YES/NO prompt to Gemma 4     (~400ms)\n#   - Mojo:   ONNX Runtime + deberta-v3-base-mnli (exported)     (~15ms)\n#   - Rust:   candle + deberta-v3-base-mnli                       (~12ms)\n\n# On CONFLICT, the caller MUST either:\n#   1. Add a `contradicts` edge and keep both nodes (acknowledged tension), OR\n#   2. Add `supersedes` pointing at the old node + tombstone it (explicit replacement).\n# Silent overwrite is FORBIDDEN. This is the rule that prevents belief rot.' },
+      { text:'<strong>Reduce pass algorithm.</strong> Scheduled job (nightly or on-demand). Cluster level-N nodes, ask the LLM to generalize each cluster, insert the result as level-(N+1) with <code>derived_from</code> edges pointing back at the evidence.', code:'fn reduce_pass(level, min_cluster=3, sim_threshold=0.75):\n    candidates = active_nodes where level == target_level\n    clusters = greedy_cluster(candidates, sim_threshold)\n    promoted = 0\n    for cluster in clusters where |cluster| >= min_cluster:\n        generalization = llm_generalize(cluster.texts)\n        if generalization == "NONE":           # LLM said cluster too noisy\n            continue\n        new_node = Node(\n            level = level + 1,\n            kind  = level_to_kind(level + 1),\n            text  = generalization,\n        )\n        if insert_with_all_invariants(new_node, parents=cluster.ids):\n            promoted += 1\n    return promoted\n\nfn greedy_cluster(items, threshold):\n    # O(n²) but simple. For larger n, swap in HDBSCAN.\n    used = empty_set\n    clusters = []\n    for i, item in enumerate(items):\n        if item.id in used: continue\n        cluster = [item]\n        used.add(item.id)\n        for j, other in items[i+1:]:\n            if other.id in used: continue\n            if cosine(item.emb, other.emb) >= threshold:\n                cluster.append(other)\n                used.add(other.id)\n        clusters.append(cluster)\n    return clusters' },
+      { text:'<strong>Retrieval mode A: abstract-first.</strong> Match at a high level, walk DOWN <code>derived_from</code> edges to gather supporting evidence. Good for "what do I believe about the user?"', code:'fn retrieve_abstract(query, top_level=3, max_depth=3):\n    q_emb = embed(query)\n    # Find the single best high-level match\n    candidates = cosine_topk(q_emb,\n                             filter_level_gte=top_level,\n                             k=1)\n    if empty(candidates): return []\n    root = candidates[0]\n    # BFS downward along derived_from to pull in evidence\n    result = [(depth=0, text=root.text)]\n    frontier = [(root, 1)]\n    while frontier not empty:\n        (cur, depth) = frontier.pop_front()\n        if depth > max_depth: continue\n        for kid in derived_from_children(cur):\n            result.append((depth, kid.text))\n            frontier.append((kid, depth + 1))\n    return result    # caller formats with indentation per depth' },
+      { text:'<strong>Retrieval mode B: specific-first.</strong> Match at level 0/1, walk UP to grab the abstractions that subsume the hit. Good for "what happened that\'s relevant to the user\'s current question?"', code:'fn retrieve_specific(query, k=3, max_depth=5):\n    q_emb = embed(query)\n    hits = cosine_topk(q_emb, filter_level_lte=1, k=k)\n    chains = []\n    for hit in hits:\n        chain = [hit.text]\n        cur = hit\n        depth = 0\n        while depth < max_depth:\n            # Walk one step up — take the first derived_from parent\n            parent = first_parent_via_derived_from(cur)\n            if parent is None: break\n            chain.insert_front(parent.text)\n            cur = parent\n            depth += 1\n        chains.append(chain)\n    return chains' },
+      { text:'<strong>Embedding backend: the one place language choice really matters.</strong> This is where a Mojo/Rust port differs most from the Python reference.', code:'| Backend                   | Languages               | Latency | Port effort |\n|---------------------------|-------------------------|---------|-------------|\n| sentence-transformers     | Python only             | ~20ms   | zero (ref)  |\n| ONNX Runtime C API        | C/C++/Rust/Mojo/Swift   | ~15ms   | MEDIUM      |\n| candle-rs                 | Rust (+ Mojo via FFI)   | ~12ms   | MEDIUM      |\n| llama.cpp embedding API   | universal               | ~25ms   | EASY        |\n| MLX embedding             | Swift/Python            | ~8ms    | Mac-only    |\n\n# === Mojo-specific winning path ===\n# 1. One-time export of MiniLM to ONNX (done in Python, once):\n#       optimum-cli export onnx \\\n#         --model sentence-transformers/all-MiniLM-L6-v2 \\\n#         minilm_onnx/\n#\n# 2. From Mojo, load ORT via its C API:\n#       OrtCreateEnv, OrtCreateSession, OrtRun\n#    The tokenizer is also shipped with the ONNX export — use it as-is.\n#\n# 3. The output is already float32[384]. Copy into SIMD[DType.float32, 384]\n#    and you\'re ready for the cosine loop.\n#\n# Gotcha: MiniLM needs mean pooling + L2 normalization AFTER the raw ONNX output.\n# The Python sentence-transformers library does this implicitly. In Mojo you do it\n# explicitly, otherwise your embeddings will NOT match the Python reference.' },
+      { text:'<strong>Generation backend: HTTP to Ollama. Universal.</strong> Don\'t try to embed Gemma 4 in-process in Mojo or Rust. HTTP POST to <code>localhost:11434</code> is the same in every language and adds <1ms overhead versus in-process.', code:'# Every language can speak this:\nPOST http://localhost:11434/api/chat\nContent-Type: application/json\n\n{\n  "model": "gemma4:e4b",\n  "messages": [\n    {"role":"system", "content":"<system>"},\n    {"role":"user",   "content":"<query>"}\n  ],\n  "stream": false\n}\n\n# Response: { "message": { "role":"assistant", "content":"<reply>" }, ... }' },
+      { text:'<strong>Portability matrix.</strong> What ports 1:1, what needs replacement.', code:'| Component                 | Universal? | Python impl           | Mojo / Rust impl           |\n|---------------------------|------------|-----------------------|----------------------------|\n| SQLite schema + CTEs      | YES        | sqlite3 module        | sqlite3 C API via FFI      |\n| Node ID (BLAKE2b-128)     | YES        | hashlib.blake2b       | libblake2 / blake2 crate   |\n| Invariant A (cycle)       | YES        | SQL recursive CTE     | same SQL, same binding     |\n| Invariant B (level)       | YES        | pure function         | pure function              |\n| Invariant C (grounding)   | YES        | pure function         | pure function              |\n| Cosine similarity         | YES        | numpy dot             | SIMD[float32, 384] dot     |\n| Embedding inference       | NO         | sentence-transformers | ONNX Runtime C API         |\n| NLI contradiction         | NO         | Gemma via HTTP        | DeBERTa-v3-mnli via ONNX   |\n| LLM generalize / generate | YES        | HTTP to Ollama        | HTTP to Ollama             |\n| Reduce pass orchestration | YES        | pure function         | pure function              |\n| Retrieval graph walks     | YES        | SQL + small loop      | SQL + small loop           |\n| DOT export                | YES        | string formatting     | string formatting          |\n\n# Only TWO rows need language-specific implementation: the embedding model\n# and (optionally) a fast NLI classifier. Everything else ports 1:1.' },
+    ],
+    expected:'A design document precise enough that two implementations in different languages will produce <strong>byte-identical <code>memory.db</code> files</strong> given the same inputs. The Python recipe (next) and a hypothetical Mojo port can interoperate through the shared SQLite file — one process writes, the other reads.',
+    gotchas:[
+      '<strong>Content-addressable IDs are necessary</strong> for cross-machine merges. Autoincrement IDs will collide the moment you try to sync two laptops.',
+      '<strong>Embeddings are NOT portable across libraries without care.</strong> MiniLM in sentence-transformers and the same model in ONNX produce identical outputs ONLY if you match tokenizer + mean-pooling + L2 normalization exactly. Test with known inputs.',
+      '<strong>SQLite WAL mode is essential</strong> if multiple processes touch the DB (e.g. a Python writer and a Mojo reader). <code>PRAGMA journal_mode = WAL</code> in the schema.',
+      '<strong>The NLI check is the hardest part to port.</strong> Calling Gemma-as-NLI works but is ~400ms per check. A dedicated NLI model (DeBERTa-v3-base-mnli, 86 MB) is ~30× faster via ONNX but adds another model dependency.',
+      '<strong>Do not write DFS in application code for the cycle check.</strong> The recursive CTE is faster, shorter, and less buggy. Every SQLite binding since 2014 supports it.',
+      '<strong>Mojo-specific trap:</strong> Mojo\'s Python interop can tempt you into just calling sentence-transformers from Mojo. That works, but it defeats the point — you\'re paying the Python interpreter cost on every embedding. Bite the bullet and go ONNX.',
+    ],
+    nextUp:'belief_dag_python',
+  },
+
+  {
+    id:'belief_dag_python',
+    title:'Hierarchical belief DAG — Python reference',
+    emoji:'🐍',
+    stars:5,
+    time:'4+ hrs',
+    hardware:'all',
+    goal:'augment',
+    analogy:'The direct realization of the spec in 14a. This is the version you can run today. It extends Recipe 12\'s <code>memory.db</code> with two new tables, adds invariant enforcement on every insert, and exposes four operations: <code>insert_node</code>, <code>reduce_pass</code>, <code>retrieve_abstract</code>, <code>retrieve_specific</code>. Every function name corresponds to a section of the spec — when you later port to Mojo, you\'ll reuse the names and rewrite the bodies.',
+    prereqs:[
+      { id:'belief_memory', label:'Belief layer + memory (this extends memory.db)' },
+      { id:'belief_dag_spec', label:'Portable spec (mental map of what each function does)' },
+      '<code>pip install numpy requests sentence-transformers pyyaml</code>',
+    ],
+    touches:['prompt_wrapper'],
+    steps:[
+      { text:'<strong>Schema migration.</strong> Save as <code>dag.py</code>. Extends the same <code>memory.db</code> file from Recipe 12 — the flat memories table stays, the new tables live alongside.', code:'# dag.py\nimport hashlib, json, sqlite3, time, requests\nimport numpy as np\nfrom sentence_transformers import SentenceTransformer\n\nSCHEMA = """\nCREATE TABLE IF NOT EXISTS nodes (\n  id         BLOB PRIMARY KEY,\n  level      INTEGER NOT NULL,\n  kind       INTEGER NOT NULL,\n  text       TEXT NOT NULL,\n  confidence REAL NOT NULL DEFAULT 1.0,\n  created_at INTEGER NOT NULL,\n  last_seen  INTEGER NOT NULL,\n  embedding  BLOB NOT NULL,\n  tombstone  INTEGER NOT NULL DEFAULT 0\n);\nCREATE TABLE IF NOT EXISTS edges (\n  src        BLOB NOT NULL,\n  dst        BLOB NOT NULL,\n  predicate  INTEGER NOT NULL,\n  weight     REAL NOT NULL DEFAULT 1.0,\n  created_at INTEGER NOT NULL,\n  PRIMARY KEY (src, dst, predicate),\n  FOREIGN KEY (src) REFERENCES nodes(id),\n  FOREIGN KEY (dst) REFERENCES nodes(id)\n);\nCREATE INDEX IF NOT EXISTS nodes_level_idx ON nodes(level) WHERE tombstone=0;\nCREATE INDEX IF NOT EXISTS edges_src_idx ON edges(src);\nCREATE INDEX IF NOT EXISTS edges_dst_idx ON edges(dst);\nPRAGMA journal_mode = WAL;\nPRAGMA foreign_keys = ON;\n"""\n\nKIND = {"episode":0, "obs":1, "trait":2, "theme":3, "identity":4}\nPRED = {"derived_from":0, "supports":1, "contradicts":2,\n        "specializes":3, "supersedes":4}\nOLLAMA = "http://localhost:11434/api/chat"\n\ndef init_dag(path="memory.db"):\n    conn = sqlite3.connect(path)\n    conn.executescript(SCHEMA)\n    return conn' },
+      { text:'<strong>Content-addressable node IDs and the insert path with Invariants A & B.</strong>', code:'def node_id(level: int, text: str) -> bytes:\n    """BLAKE2b-128 hash — same input produces same ID on any machine."""\n    h = hashlib.blake2b(digest_size=16)\n    h.update(level.to_bytes(1, "big"))\n    h.update(text.encode("utf-8"))\n    return h.digest()\n\ndef _check_cycle(conn, new_id: bytes, derived_from: list) -> bool:\n    """Invariant A — SQL recursive CTE, exactly as in the spec."""\n    for parent in derived_from:\n        row = conn.execute("""\n            WITH RECURSIVE ancestors(id) AS (\n                SELECT dst FROM edges\n                  WHERE src = ? AND predicate = 0\n                UNION\n                SELECT e.dst FROM edges e\n                  JOIN ancestors a ON e.src = a.id\n                  WHERE e.predicate = 0\n            )\n            SELECT 1 FROM ancestors WHERE id = ? LIMIT 1\n        """, (parent, new_id)).fetchone()\n        if row: return False\n    return True\n\ndef _check_level(conn, new_level: int, derived_from: list) -> bool:\n    """Invariant B — monotonic level."""\n    if not derived_from:\n        return new_level == 0\n    parent_levels = []\n    for p in derived_from:\n        row = conn.execute("SELECT level FROM nodes WHERE id=?", (p,)).fetchone()\n        if row is None: return False\n        parent_levels.append(row[0])\n    return new_level == max(parent_levels) + 1' },
+      { text:'<strong>Invariant D: contradiction detection via Gemma-as-NLI.</strong> For the reference implementation we use Gemma itself as the classifier — slow but zero extra dependencies. Swap in ONNX DeBERTa later if you need speed.', code:'def _check_contradiction(conn, text: str, emb: np.ndarray, level: int):\n    """Invariant D — returns conflicting node id, or None."""\n    rows = conn.execute(\n        "SELECT id, text, embedding FROM nodes WHERE level=? AND tombstone=0",\n        (level,)\n    ).fetchall()\n    for nid, other_text, other_emb_blob in rows:\n        other_emb = np.frombuffer(other_emb_blob, dtype=np.float32)\n        sim = float(\n            np.dot(emb, other_emb) /\n            (np.linalg.norm(emb) * np.linalg.norm(other_emb) + 1e-8)\n        )\n        if sim < 0.85:\n            continue\n        # near-duplicate; ask Gemma if it\'s a contradiction\n        r = requests.post(OLLAMA, json={\n            "model": "gemma4:e4b",\n            "messages": [{"role": "user", "content":\n                f"Do these two statements contradict each other? "\n                f"Answer only YES or NO.\\n"\n                f"A: {text}\\nB: {other_text}"}],\n            "stream": False,\n        }).json()\n        if "YES" in r["message"]["content"].upper():\n            return nid\n    return None' },
+      { text:'<strong>The insert function that enforces all three pre-commit invariants.</strong>', code:'def insert_node(conn, embedder, level, kind, text,\n                derived_from=None, supersedes=None, confidence=1.0):\n    """Insert a node, enforcing invariants A, B, D. C runs as a separate audit."""\n    derived_from = derived_from or []\n    nid = node_id(level, text)\n    now = int(time.time() * 1000)\n\n    # Idempotent: content-addressable IDs mean duplicate inserts are no-ops\n    if conn.execute("SELECT 1 FROM nodes WHERE id=?", (nid,)).fetchone():\n        return nid\n\n    emb = embedder.encode(text).astype(np.float32)\n\n    if not _check_level(conn, level, derived_from):\n        raise ValueError(f"Invariant B: level {level} inconsistent with parents")\n    if not _check_cycle(conn, nid, derived_from):\n        raise ValueError("Invariant A: would introduce cycle")\n    conflict = _check_contradiction(conn, text, emb, level)\n    if conflict and supersedes != conflict:\n        raise ValueError(\n            f"Invariant D: contradicts node {conflict.hex()[:8]}. "\n            f"Pass supersedes={conflict.hex()[:8]}... or add contradicts edge."\n        )\n\n    conn.execute(\n        "INSERT INTO nodes VALUES (?,?,?,?,?,?,?,?,0)",\n        (nid, level, KIND[kind], text, confidence, now, now, emb.tobytes())\n    )\n    for p in derived_from:\n        conn.execute("INSERT INTO edges VALUES (?,?,?,?,?)",\n                     (nid, p, PRED["derived_from"], 1.0, now))\n    if supersedes:\n        conn.execute("INSERT INTO edges VALUES (?,?,?,?,?)",\n                     (nid, supersedes, PRED["supersedes"], 1.0, now))\n        conn.execute("UPDATE nodes SET tombstone=1 WHERE id=?", (supersedes,))\n    conn.commit()\n    return nid' },
+      { text:'<strong>Invariant C: the grounding audit.</strong> Run this nightly. Flags any high-level node that no longer traces to a level-0 episode within K hops.', code:'def audit_grounding(conn, max_depth=5):\n    """Invariant C — returns list of orphan node ids for review."""\n    orphans = []\n    high = conn.execute(\n        "SELECT id FROM nodes WHERE level>=1 AND tombstone=0"\n    ).fetchall()\n    for (nid,) in high:\n        frontier = [(nid, 0)]\n        seen = set()\n        grounded = False\n        while frontier:\n            cur, depth = frontier.pop()\n            if cur in seen or depth > max_depth: continue\n            seen.add(cur)\n            lvl = conn.execute(\n                "SELECT level FROM nodes WHERE id=?", (cur,)\n            ).fetchone()\n            if lvl and lvl[0] == 0:\n                grounded = True\n                break\n            kids = conn.execute(\n                "SELECT dst FROM edges WHERE src=? AND predicate=0", (cur,)\n            ).fetchall()\n            frontier.extend((k, depth + 1) for (k,) in kids)\n        if not grounded:\n            orphans.append(nid)\n    return orphans' },
+      { text:'<strong>The reduce pass.</strong> Greedy clustering by cosine similarity, then LLM-powered generalization for each cluster.', code:'def reduce_pass(conn, embedder, level, min_cluster=3, sim_threshold=0.75):\n    """Promote clusters of level-N nodes into level-(N+1) generalizations."""\n    rows = conn.execute(\n        "SELECT id, text, embedding FROM nodes WHERE level=? AND tombstone=0",\n        (level,)\n    ).fetchall()\n    items = [(nid, t, np.frombuffer(e, dtype=np.float32)) for nid, t, e in rows]\n\n    # Greedy threshold clustering (O(n²) — fine for n<1000)\n    used = set()\n    clusters = []\n    for i, (ida, ta, ea) in enumerate(items):\n        if ida in used: continue\n        cluster = [(ida, ta, ea)]\n        used.add(ida)\n        for idb, tb, eb in items[i+1:]:\n            if idb in used: continue\n            sim = float(np.dot(ea, eb) /\n                        (np.linalg.norm(ea)*np.linalg.norm(eb) + 1e-8))\n            if sim >= sim_threshold:\n                cluster.append((idb, tb, eb))\n                used.add(idb)\n        if len(cluster) >= min_cluster:\n            clusters.append(cluster)\n\n    kinds_for_level = ["episode","obs","trait","theme","identity"]\n    promoted = 0\n    for cluster in clusters:\n        joined = "\\n".join(f"- {t}" for _, t, _ in cluster)\n        r = requests.post(OLLAMA, json={\n            "model": "gemma4:e4b",\n            "messages": [{"role": "user", "content":\n                f"The items below describe the same underlying pattern. "\n                f"State it in ONE declarative sentence at a higher level of "\n                f"abstraction. If they are too noisy to generalize, reply "\n                f"exactly NONE.\\n\\n{joined}"}],\n            "stream": False,\n        }).json()\n        text = r["message"]["content"].strip()\n        if text.upper().startswith("NONE"):\n            continue\n        try:\n            insert_node(conn, embedder,\n                        level + 1,\n                        kinds_for_level[min(level + 1, 4)],\n                        text,\n                        derived_from=[c[0] for c in cluster])\n            promoted += 1\n        except ValueError as e:\n            print(f"  skipped cluster: {e}")\n    return promoted' },
+      { text:'<strong>Retrieval — both modes.</strong> Abstract-first walks down from a high-level match; specific-first walks up from a low-level match.', code:'def retrieve_abstract(conn, embedder, query, top_level=3, max_depth=3):\n    """Mode A: match high, walk down to evidence. Returns [(depth, text), ...]."""\n    q = embedder.encode(query).astype(np.float32)\n    rows = conn.execute(\n        "SELECT id, text, embedding FROM nodes WHERE level>=? AND tombstone=0",\n        (top_level,)\n    ).fetchall()\n    scored = []\n    for nid, txt, eb in rows:\n        e = np.frombuffer(eb, dtype=np.float32)\n        sim = float(np.dot(q, e) / (np.linalg.norm(q)*np.linalg.norm(e) + 1e-8))\n        scored.append((sim, nid, txt))\n    scored.sort(reverse=True)\n    if not scored: return []\n\n    _, root_id, root_text = scored[0]\n    result = [(0, root_text)]\n    frontier = [(root_id, 1)]\n    seen = {root_id}\n    while frontier:\n        cur, depth = frontier.pop(0)\n        if depth > max_depth: continue\n        kids = conn.execute(\n            "SELECT n.id, n.text FROM edges e "\n            "JOIN nodes n ON e.dst = n.id "\n            "WHERE e.src=? AND e.predicate=0 AND n.tombstone=0",\n            (cur,)\n        ).fetchall()\n        for kid_id, kid_text in kids:\n            if kid_id in seen: continue\n            seen.add(kid_id)\n            result.append((depth, kid_text))\n            frontier.append((kid_id, depth + 1))\n    return result\n\ndef retrieve_specific(conn, embedder, query, k=3, max_depth=5):\n    """Mode B: match low, walk up. Returns [[root, ..., hit], ...]."""\n    q = embedder.encode(query).astype(np.float32)\n    rows = conn.execute(\n        "SELECT id, text, embedding FROM nodes WHERE level<=1 AND tombstone=0"\n    ).fetchall()\n    scored = []\n    for nid, txt, eb in rows:\n        e = np.frombuffer(eb, dtype=np.float32)\n        sim = float(np.dot(q, e) / (np.linalg.norm(q)*np.linalg.norm(e) + 1e-8))\n        scored.append((sim, nid, txt))\n    scored.sort(reverse=True)\n\n    chains = []\n    for _, nid, txt in scored[:k]:\n        chain = [txt]\n        cur = nid\n        for _ in range(max_depth):\n            parent = conn.execute(\n                "SELECT dst, (SELECT text FROM nodes WHERE id=e.dst) "\n                "FROM edges e WHERE e.src=? AND e.predicate=0 LIMIT 1",\n                (cur,)\n            ).fetchone()\n            if not parent: break\n            cur, ptext = parent\n            chain.insert(0, ptext)\n        chains.append(chain)\n    return chains' },
+      { text:'<strong>Export the DAG as Graphviz DOT.</strong> Lets you eyeball the hierarchy with <code>dot -Tpng belief_dag.dot -o belief_dag.png</code>.', code:'def export_dot(conn, path="belief_dag.dot"):\n    nodes = conn.execute(\n        "SELECT id, level, text FROM nodes WHERE tombstone=0"\n    ).fetchall()\n    edges = conn.execute("SELECT src, dst, predicate FROM edges").fetchall()\n    colors = ["#888", "#4A90D9", "#7B68EE", "#E8834A", "#50C878"]\n    styles = ["solid", "dashed", "dotted", "bold", "dashed"]\n    with open(path, "w") as f:\n        f.write("digraph beliefs {\\n  rankdir=BT;\\n"\n                "  node[shape=box, style=filled, fontname=\\"monospace\\"];\\n")\n        for nid, lvl, txt in nodes:\n            short = (txt[:50] + "…") if len(txt) > 50 else txt\n            short = short.replace(\'"\', r\'\\"\')\n            f.write(f\'  "{nid.hex()[:8]}" \'\n                    f\'[label="L{lvl}\\\\n{short}", \'\n                    f\'fillcolor="{colors[min(lvl,4)]}"];\\n\')\n        for s, d, p in edges:\n            f.write(f\'  "{s.hex()[:8]}" -> "{d.hex()[:8]}" \'\n                    f\'[style={styles[p]}];\\n\')\n        f.write("}\\n")' },
+      { text:'<strong>Integration with Recipe 12\'s chat loop.</strong> Replace the flat <code>recall()</code> with the hierarchical version. Add a <code>/reduce</code> command to trigger the compaction job, and <code>/graph</code> to dump DOT.', code:'# Patch these lines into gemma_mind.py from Recipe 12:\n\nfrom dag import (init_dag, insert_node, reduce_pass, audit_grounding,\n                 retrieve_abstract, retrieve_specific, export_dot)\n\n# in main():\nconn = init_dag("memory.db")\n\n# Replace the old flat format_memories() with hierarchical:\ndef format_hierarchy(conn, embedder, query):\n    chains = retrieve_specific(conn, embedder, query, k=3)\n    abs_tree = retrieve_abstract(conn, embedder, query)\n    out = []\n    if abs_tree:\n        out.append("# RECALLED CONTEXT (abstract → evidence)")\n        for depth, text in abs_tree:\n            out.append("  " * depth + f"- {text}")\n    if chains:\n        out.append("\\n# RELEVANT EPISODES (with context chain)")\n        for chain in chains:\n            for i, text in enumerate(chain):\n                out.append("  " * i + f"- {text}")\n    return "\\n".join(out)\n\n# Add these commands to the loop:\nif user == "/reduce":\n    for lvl in range(4):\n        n = reduce_pass(conn, embedder, lvl)\n        print(f"  level {lvl} → {lvl+1}: promoted {n} clusters")\n    continue\nif user == "/audit":\n    orphans = audit_grounding(conn)\n    print(f"  {len(orphans)} orphan nodes")\n    for o in orphans: print(f"    {o.hex()[:8]}")\n    continue\nif user == "/graph":\n    export_dot(conn)\n    print("  wrote belief_dag.dot — run: dot -Tpng belief_dag.dot -o g.png")\n    continue\n\n# When ingesting a new fact, use insert_node at level 0:\nif user.startswith("/remember "):\n    insert_node(conn, embedder, 0, "episode",\n                user[len("/remember "):].strip())\n    continue' },
+    ],
+    expected:'A working hierarchical belief DAG on top of Recipe 12\'s chat loop. You can <code>/remember</code> episodes, <code>/reduce</code> periodically to promote patterns upward, <code>/audit</code> to find orphans, and <code>/graph</code> to render the whole thing. The same <code>memory.db</code> file is readable by any future Mojo/Rust port that conforms to Recipe 14a — because content-addressable IDs and the SQLite schema are the shared contract.',
+    gotchas:[
+      '<strong>Every function in this recipe corresponds to a section of the 14a spec.</strong> When you port to Mojo, keep the names and signatures; only the bodies change.',
+      '<strong>The reference uses Gemma-as-NLI for contradiction detection</strong> — ~400ms per check. For a production port, swap in <code>deberta-v3-base-mnli</code> via ONNX Runtime (~15ms).',
+      '<strong>Don\'t run the reduce pass in the chat loop.</strong> It can take minutes on large DAGs. Schedule it nightly or run on-demand via the <code>/reduce</code> command.',
+      '<strong>Greedy clustering is O(n²).</strong> Fine until ~2000 nodes per level. Past that, swap in HDBSCAN (<code>pip install hdbscan</code>) and replace the inner loop.',
+      '<strong>Always pass the same <code>embedder</code> instance everywhere.</strong> Creating a new SentenceTransformer for each call reloads ~80 MB of weights and tokens.',
+      '<strong>If you ever change the level/text encoding in <code>node_id()</code>, you break content-addressable compatibility with all existing DBs and any other-language ports.</strong> Treat the hash function as a frozen ABI.',
+      '<strong>Do NOT set <code>num_predict</code> in the Ollama options block.</strong> Gemma 4 consumes hidden reasoning tokens before visible output; a cap of 80 or 120 returns empty strings and the reduce pass silently promotes zero clusters (because empty → NONE → skip). Observed in testing on April 2026 — leave it unset or use ≥400.',
+      '<strong>Stub vs. real generalization behave differently at L1→L2.</strong> If you swap <code>generalize_fn</code> for a template-based stub that echoes cluster centroids, L0→L1 will work fine but L1→L2 will almost never promote — because centroid-based stub text stays too concrete to cluster with other stub text. Real LLM generalizations are <em>abstract</em> and therefore cluster more tightly with each other at higher levels. This is a real finding, not a bug: abstract text compounds, concrete text doesn\'t. Use the stub only for smoke-testing L0→L1 mechanics.',
+    ],
+    nextUp:null,
+  },
+];
+
+createApp({
+  setup() {
+    const selectedId = ref(RECIPES[0].id);
+    const hwFilter = ref('all');
+    const goalFilter = ref('all');
+    const copiedIdx = ref(-1);
+
+    const recipes = RECIPES;
+    const selected = computed(() => RECIPES.find(r => r.id === selectedId.value));
+
+    function matchesFilter(r) {
+      const hwOk = hwFilter.value === 'all' || r.hardware === 'all' || r.hardware === hwFilter.value;
+      const goalOk = goalFilter.value === 'all' || r.goal === goalFilter.value;
+      return hwOk && goalOk;
+    }
+
+    function hwLabel(h) { return HW[h] || h; }
+    function goalLabel(g) { return GOALS[g] || g; }
+    function archLabel(id) { return ARCH_LABELS[id] || id; }
+
+    function copyCode(code, idx) {
+      navigator.clipboard.writeText(code).then(() => {
+        copiedIdx.value = idx;
+        setTimeout(() => { if (copiedIdx.value === idx) copiedIdx.value = -1; }, 1500);
+      });
+    }
+
+    function nextUpLabel() {
+      const nxt = RECIPES.find(r => r.id === selected.value.nextUp);
+      return nxt ? `${nxt.emoji} ${nxt.title}` : '';
+    }
+
+    return {
+      selectedId, hwFilter, goalFilter, copiedIdx,
+      recipes, selected,
+      matchesFilter, hwLabel, goalLabel, archLabel, copyCode, nextUpLabel,
+    };
+  }
+}).mount('#app');
+</script>
+</body>
+</html>

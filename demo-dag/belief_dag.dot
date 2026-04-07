@@ -1,0 +1,35 @@
+digraph beliefs {
+  rankdir=BT;
+  node[shape=box, style=filled, fontname="monospace", fontsize=10];
+  "7577745b" [label="L0\nInstalled Ollama via Homebrew and successfully ran gemm…", fillcolor="#888888"];
+  "d1b63bd3" [label="L0\nRan llama-cli with --flash-attn and --cache-type-k q4_0…", fillcolor="#888888"];
+  "97f1568d" [label="L0\nInstalled sentence-transformers in a Python 3.14 venv t…", fillcolor="#888888"];
+  "cf0ff6d3" [label="L0\nSet up a virtualenv with numpy and torch 2.11 wheels fo…", fillcolor="#888888"];
+  "371b90c6" [label="L0\nAsked for terse answers without multi-paragraph summari…", fillcolor="#888888"];
+  "81c0833e" [label="L0\nSaid they prefer concrete commands over abstract explan…", fillcolor="#888888"];
+  "de401a39" [label="L0\nMentioned they'd rather see runnable code than pseudoco…", fillcolor="#888888"];
+  "1a4c3bdc" [label="L0\nTold me to skip preamble and jump straight to the answe…", fillcolor="#888888"];
+  "815a7a1b" [label="L0\nBuilding hacks.html as a hackable recipe cookbook for G…", fillcolor="#888888"];
+  "56835799" [label="L0\nWorking in the pgolf-explorer directory alongside gemma…", fillcolor="#888888"];
+  "12cc08bd" [label="L0\nWriting dag.py to extend the memory.db schema from Reci…", fillcolor="#888888"];
+  "615c1374" [label="L0\nWants to verify that the Recipe 14b code actually runs …", fillcolor="#888888"];
+  "9ec4b19f" [label="L0\nObserved that beliefs and memories differ only in bookk…", fillcolor="#888888"];
+  "93c7cd70" [label="L0\nNoted that content and form are the key distinction in …", fillcolor="#888888"];
+  "dfff8180" [label="L0\nAsked how multiple layers of abstraction could condense…", fillcolor="#888888"];
+  "fc97181e" [label="L0\nBrought up DAG-based RDF as the likely underlying struc…", fillcolor="#888888"];
+  "102746b0" [label="L1\nUser is setting up local ML tooling", fillcolor="#4A90D9"];
+  "673b03ab" [label="L1\nThe underlying pattern expresses a preference for concr…", fillcolor="#4A90D9"];
+  "c39df818" [label="L1\nThese items describe the process of developing, organiz…", fillcolor="#4A90D9"];
+  "2f019210" [label="L2\nComfortable with infrastructure setup", fillcolor="#7B68EE"];
+  "ee4c2eb0" [label="L2\nThe pattern describes the structured execution and vali…", fillcolor="#7B68EE"];
+  "102746b0" -> "7577745b" [style=solid];
+  "2f019210" -> "102746b0" [style=solid];
+  "673b03ab" -> "81c0833e" [style=solid];
+  "673b03ab" -> "de401a39" [style=solid];
+  "673b03ab" -> "dfff8180" [style=solid];
+  "c39df818" -> "56835799" [style=solid];
+  "c39df818" -> "615c1374" [style=solid];
+  "c39df818" -> "815a7a1b" [style=solid];
+  "ee4c2eb0" -> "673b03ab" [style=solid];
+  "ee4c2eb0" -> "c39df818" [style=solid];
+}
