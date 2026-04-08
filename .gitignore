@@ -16,3 +16,8 @@ demo-dag/memory.db-wal
 
 # worktrees
 .worktrees/
+
+# Astro / Node
+node_modules/
+dist/
+.astro/
