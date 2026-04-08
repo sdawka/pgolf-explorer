@@ -38,7 +38,7 @@ function nextUpLabel() {
   <div class="hacks-root">
     <div class="header">
       <h1><span class="brand">Gemma 4</span> Hack Recipes</h1>
-      <a class="nav-link" href="gemma.html">← Architecture Explorer</a>
+      <a class="nav-link" href="/gemma">← Architecture Explorer</a>
       <div class="filters">
         <div class="filter-group">
           <label>Hardware</label>
@@ -112,7 +112,7 @@ function nextUpLabel() {
             <h3>What you're actually changing</h3>
             <div class="touches-list">
               <a v-for="t in selected.touches" :key="t" class="touch-pill"
-                 :href="'gemma.html'" :title="'Open ' + archLabel(t) + ' in the explorer'">
+                 :href="'/gemma'" :title="'Open ' + archLabel(t) + ' in the explorer'">
                 {{archLabel(t)}}<span class="arrow">↗</span>
               </a>
             </div>

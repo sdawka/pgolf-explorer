@@ -228,7 +228,7 @@ function arrowHead(x, y) { return `${x-4},${y-6} ${x},${y} ${x+4},${y-6}`; }
   <div class="gemma-root">
     <div class="header">
       <h1><span>Gemma 4</span> Architecture Explorer &middot; <span style="color:var(--hack)">hackable edition</span></h1>
-      <a href="hacks.html" style="color:var(--text2); text-decoration:none; font-size:11px; text-transform:uppercase; letter-spacing:1px; padding:4px 8px; border:1px solid var(--border); border-radius:4px;">Hack Recipes →</a>
+      <a href="/hacks" style="color:var(--text2); text-decoration:none; font-size:11px; text-transform:uppercase; letter-spacing:1px; padding:4px 8px; border:1px solid var(--border); border-radius:4px;">Hack Recipes →</a>
       <div class="header-controls">
         <div>
           <label>Variant</label><br>
