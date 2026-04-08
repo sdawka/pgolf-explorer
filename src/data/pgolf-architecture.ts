@@ -26,6 +26,7 @@ export const NODES = [
   {
     id:'input_tokens', label:'Input Token IDs', category:'embedding',
     details:{
+      plainEnglish:'Text gets chopped up into small pieces (roughly word fragments), and each piece is swapped for a number. This challenge uses a tiny dictionary of only 1024 possible pieces, which is about 50x smaller than what regular language models use — a deliberate choice to save space.',
       whatItDoes:'Raw integer IDs from the tokenizer. Each text chunk is split into tokens (sub-word pieces) and mapped to integers 0-1023. For this challenge, a 1024-token SentencePiece BPE vocabulary is used \u2014 much smaller than typical LLMs (GPT-2 uses 50K).',
       whyItMatters:'The vocabulary size directly affects model size. A 1024-vocab embedding table is tiny (~512KB) vs a 50K-vocab one (~25MB). In a 16MB budget, this matters enormously. Smaller vocab means more tokens per byte of text, but each token carries less information.',
       keyParams:{ vocab_size:'1024', tokenizer:'SentencePiece BPE', seq_len:'1024 (baseline), 2048-4096 (advanced)' },
@@ -41,6 +42,7 @@ export const NODES = [
   {
     id:'tok_emb', label:'Token Embedding', sublabel:'1024 \u00d7 512, tied', category:'embedding',
     details:{
+      plainEnglish:'A big lookup table that turns each numbered word-piece into a list of 512 numbers the model can actually reason about. The same table is reused at the very end to pick the next word — so it does double duty, which is why good submissions keep it in high precision even while compressing everything else.',
       whatItDoes:'A lookup table with 1024 rows and 512 columns. Each token ID selects one row, producing a 512-dimensional vector. This is the model\'s only way to "see" text. The same weight matrix is reused at the output to predict tokens (weight tying), so it serves double duty.',
       whyItMatters:'Weight tying halves the embedding parameter cost. But it means quantization errors here compound \u2014 they affect both input understanding AND output predictions. This is why top submissions keep embeddings in fp16 instead of quantizing them.',
       keyParams:{ shape:'[1024, 512]', dtype:'bf16 compute, fp32 stored', tied:'Yes (shared with output)', init:'N(0, 0.005)' },
@@ -61,6 +63,7 @@ export const NODES = [
   {
     id:'bigram_hash', label:'BigramHash', sublabel:'advanced', category:'embedding', advanced:true,
     details:{
+      plainEnglish:'A cheap shortcut for spotting two-word patterns. It takes each pair of consecutive word-pieces, hashes them into a bucket, and looks up a small feature vector for that bucket. This gives the model instant access to "these two words often go together" signals before the expensive layers even run.',
       whatItDoes:'Hashes each consecutive pair of tokens (a "bigram") into a learned embedding table. For example, tokens [42, 17] get hashed to bucket (42*31 + 17) % 10240, which looks up a 128-dim vector, then a linear layer projects it to 512-dim and adds it to the token embedding. This gives the model instant access to 2-token patterns without needing attention.',
       whyItMatters:'Attention is expensive and takes a full layer to see pairs. BigramHash injects bigram features at the embedding level for almost free. The SOTA uses 10240 buckets \u2014 with 1024 vocab, there are ~1M possible bigrams, so collisions are common but the model learns to use the hashed signal anyway.',
       keyParams:{ hash_buckets:'10240 (SOTA) / 4096 (#2)', embed_dim:'128', project_to:'512', scale_init:'0.05' },
@@ -80,6 +83,7 @@ export const NODES = [
   {
     id:'smear_gate', label:'SmearGate', sublabel:'advanced', category:'embedding', advanced:true,
     details:{
+      plainEnglish:'A learned knob that blends a small amount of each word into the next one. It starts at almost pure "current word" and the model gradually learns how much of the previous word is worth mixing in, per dimension. Like BigramHash, it gives the model local context for almost free.',
       whatItDoes:'A learned per-dimension gate that blends each token\'s embedding with the previous token\'s embedding. Formula: output = (1 - sigmoid(gate)) * current + sigmoid(gate) * previous. The gate is initialized near 0.95 (almost identity), so the model starts with mostly the current token and gradually learns how much previous-token info to mix in.',
       whyItMatters:'Like BigramHash, this gives the model local (bigram) context before the expensive transformer layers. But SmearGate is continuous and differentiable \u2014 it learns *how much* of the previous token to blend, per dimension. Adds only ~512 parameters.',
       keyParams:{ gate_shape:'[512]', init:'~0.95 (near identity)', params:'~512' },
@@ -99,6 +103,7 @@ export const NODES = [
   {
     id:'post_emb_norm', label:'RMSNorm', sublabel:'post-embedding', category:'normalization',
     details:{
+      plainEnglish:'Right after looking up the word vectors, this step rescales them so they all have roughly the same length. Without it, some vectors can be huge and others tiny, which makes training unstable. RMSNorm is a cheaper version of the standard normalization used in most transformers.',
       whatItDoes:'Normalizes each vector by its root-mean-square magnitude: x_norm = x / sqrt(mean(x\u00b2) + \u03b5). Unlike LayerNorm, it has no learnable scale or bias \u2014 it just makes all vectors roughly unit length. Applied immediately after the embedding lookup.',
       whyItMatters:'Without normalization, embedding vectors can have wildly different magnitudes, which makes training unstable. RMSNorm is cheaper than LayerNorm (no mean subtraction or learned params) and works just as well for transformers.',
       keyParams:{ eps:'1e-6', learnable_params:'None' },
@@ -115,6 +120,7 @@ export const NODES = [
   {
     id:'encoder_block', label:'Encoder Blocks', sublabel:'layers 0\u20133 (baseline)', category:'structural',
     details:{
+      plainEnglish:'The first half of the model\'s layers. Each layer does two things: let the words look at each other (attention), then think about each word on its own (MLP). The encoder\'s outputs get saved — the second half of the model will reuse them through shortcut connections.',
       whatItDoes:'The first half of the transformer layers. Each block applies attention (letting tokens look at each other) then an MLP (processing each token independently). The encoder stores its outputs for the U-Net skip connections \u2014 decoder layers will reuse these later.',
       whyItMatters:'Splitting into encoder/decoder with skip connections (inspired by U-Net from image segmentation) helps information flow through deep networks. Early layers capture low-level patterns, later layers capture high-level meaning, and skip connections let the decoder access both.',
       keyParams:{ num_layers:'4 (baseline) / 5 (10L) / 5 (11L)', per_block:'ResidMix \u2192 Attn \u2192 MLP' },
@@ -134,6 +140,7 @@ export const NODES = [
   {
     id:'resid_mix', label:'Residual Mix', sublabel:'per block', category:'structural', isSub:true,
     details:{
+      plainEnglish:'A small learnable dial per layer that decides how much of the original word vector to mix back in. Deep models can "forget" what the input was by the time they reach the last layer; this lets each layer pull in a fresh reminder whenever it helps.',
       whatItDoes:'A learnable per-dimension blend of two signals: the current hidden state (x) and the original embedding (x0). Formula: output = mix[0] * x + mix[1] * x0. Initialized to [1, 0] (pure current state), the model learns how much initial embedding to re-inject at each layer.',
       whyItMatters:'Deep transformers can "forget" the original input signal as it passes through many layers. Residual mix lets each layer recover input information when needed. This is a lightweight alternative to dense skip connections.',
       keyParams:{ shape:'[2, 512] per block', init:'[ones, zeros]', dtype:'fp32' },
@@ -150,6 +157,7 @@ export const NODES = [
   {
     id:'self_attn', label:'Causal Self-Attention', sublabel:'GQA, RoPE, softcap', category:'attention', isSub:true,
     details:{
+      plainEnglish:'The mechanism that lets each word peek at the earlier words and decide which ones matter. It\'s the heart of a transformer — without this step, each word would be processed in isolation. This version uses several efficiency tricks: sharing keys and values across heads (GQA), a trick for encoding word positions without extra parameters (RoPE), and a gentle bound that keeps the attention scores from exploding.',
       whatItDoes:'The core mechanism that lets each token "look at" all previous tokens. Three projections (Q, K, V) transform each token into queries, keys, and values. Attention scores = softmax(Q \u00b7 K\u1d40 / \u221ad). Uses Grouped-Query Attention (8 query heads share 4 KV heads), RoPE for position encoding, per-head learnable q_gain scaling, and softcap (tanh bounding of attention logits to [-30,30]).',
       whyItMatters:'Attention is what makes transformers work \u2014 it\'s the only mechanism that lets tokens interact with each other. GQA (4 KV heads vs 8 query heads) saves ~25% of attention parameters with minimal quality loss. RoPE encodes position information without adding parameters. The q_gain and softcap improve training stability.',
       keyParams:{ num_heads:'8', kv_heads:'4 (GQA)', head_dim:'64', rope_base:'10000', softcap:'30.0', q_gain_init:'1.5' },
@@ -173,6 +181,7 @@ export const NODES = [
   {
     id:'mlp', label:'MLP (relu\u00b2)', sublabel:'2x expand (baseline)', category:'mlp', isSub:true,
     details:{
+      plainEnglish:'After attention gathers information, this step does the actual thinking on each word separately. It expands each word into a bigger scratch space, applies a simple activation (square the positive numbers, zero the negatives), then compresses it back down. Most of the model\'s parameters live here, so the top submissions make the scratch space 50% larger and pay for it by compressing weights more aggressively.',
       whatItDoes:'Two linear transformations with a relu-squared activation in between. Expand: 512 \u2192 1024 (or 1536 for 3x). Activate: relu(x)\u00b2 (square the positive values). Compress: 1024 \u2192 512. This is applied independently to each token position. Think of it as the "thinking" step \u2014 attention gathers info, MLP processes it.',
       whyItMatters:'The MLP is where most parameters live. Going from 2x to 3x expansion increases MLP params by 50%, which top submissions fund by using aggressive quantization (int6/int5 instead of int8). relu\u00b2 is cheaper than GELU/SiLU and works well for small models.',
       keyParams:{ expand:'512 \u2192 1024 (2x) or 1536 (3x)', activation:'relu\u00b2', output_init:'zero' },
@@ -195,6 +204,7 @@ export const NODES = [
   {
     id:'skip_conn', label:'U-Net Skip Connections', sublabel:'encoder \u2192 decoder', category:'structural',
     details:{
+      plainEnglish:'Shortcut wires that connect the first half of the model directly to the second half. Borrowed from an image-segmentation architecture called U-Net: the early layers\' outputs get handed to the later layers, so information doesn\'t have to survive a long journey through every intermediate step.',
       whatItDoes:'During the encoder phase, each layer\'s output is stored. During the decoder phase, these stored outputs are fed back in reverse order with learned per-dimension weights: decoder_input = x + skip_weight * encoder_output. Layer 4 gets layer 3\'s output, layer 5 gets layer 2\'s, etc.',
       whyItMatters:'Inspired by U-Net from image segmentation. Creates "shortcut" paths that let the decoder access early-layer representations directly. This is especially helpful for small models where information can get lost through many layers.',
       keyParams:{ skip_weights_shape:'[num_skips, 512]', init:'ones', dtype:'fp32 (not quantized)' },
@@ -210,6 +220,7 @@ export const NODES = [
   {
     id:'decoder_block', label:'Decoder Blocks', sublabel:'layers 4\u20138 (baseline)', category:'structural',
     details:{
+      plainEnglish:'The second half of the model\'s layers. Structurally identical to the encoder blocks, but these layers also receive the shortcut wires from the encoder. Their job is to refine everything toward the final word prediction.',
       whatItDoes:'The second half of the transformer layers. Identical structure to encoder blocks (ResidMix \u2192 Attention \u2192 MLP) but also receives skip connection inputs from the encoder. The decoder refines the representation toward the final prediction.',
       whyItMatters:'The encoder-decoder split with skip connections creates an information bottleneck and then expands back \u2014 forcing the model to learn compressed representations in the middle layers.',
       keyParams:{ num_layers:'5 (baseline) / 5 (10L) / 6 (11L)' },
@@ -227,6 +238,7 @@ export const NODES = [
   {
     id:'final_norm', label:'Final RMSNorm', category:'normalization',
     details:{
+      plainEnglish:'One last rescaling after all the layers have run. Makes sure the final vectors have a consistent size before the model commits to a word choice. Same rescaling trick as the one used right after the embedding.',
       whatItDoes:'Same RMSNorm as before, applied after all transformer blocks. Normalizes the final hidden states before projecting to vocabulary logits.',
       whyItMatters:'Ensures the output vectors have consistent scale before the logit projection. Without this, different inputs could produce wildly different logit magnitudes, making training unstable.',
       keyParams:{ eps:'1e-6' },
@@ -240,6 +252,7 @@ export const NODES = [
   {
     id:'output_proj', label:'Output Projection', sublabel:'tied embedding', category:'output',
     details:{
+      plainEnglish:'The final step: compare the model\'s current vector against every possible word in the dictionary and score each one. Because this reuses the exact same table from the input step (weight tying), it costs zero extra parameters — a huge win when the whole model has to fit in 16 megabytes.',
       whatItDoes:'Multiplies the final hidden state by the transpose of the token embedding matrix: logits = hidden @ embedding.T. This produces a score for each vocabulary token. Because the same weight matrix is used for input embedding and output projection (weight tying), this is essentially free \u2014 no extra parameters.',
       whyItMatters:'Without weight tying, you\'d need a separate [512, 1024] output projection \u2014 another ~512K parameters. In a 16MB budget, that\'s a lot. Weight tying also acts as a regularizer, forcing the embedding to work well for both input and output.',
       keyParams:{ output_shape:'[batch*seq, 1024]', tied_to:'tok_emb.weight' },
@@ -254,6 +267,7 @@ export const NODES = [
   {
     id:'logit_softcap', label:'Logit Softcap', sublabel:'tanh(\u00b730)', category:'output',
     details:{
+      plainEnglish:'A gentle ceiling on how confident the model is allowed to be. Values near zero pass through unchanged, but extreme values get squashed back toward ±30. Keeps the model from going all-in on a single word prediction, which helps both training stability and compression.',
       whatItDoes:'Bounds the logits to [-30, 30] using a soft capping function: capped = 30 * tanh(logits / 30). Values near zero pass through unchanged; extreme values are squashed. Inspired by Google\'s Gemma/Gemini models.',
       whyItMatters:'Prevents the model from becoming overconfident by producing extremely large logits. This improves training stability and can help with quantization (bounded values are easier to quantize precisely).',
       keyParams:{ cap:'30.0', formula:'cap * tanh(x / cap)' },
@@ -268,6 +282,7 @@ export const NODES = [
   {
     id:'ce_loss', label:'Cross-Entropy Loss', category:'output',
     details:{
+      plainEnglish:'The score the model is trying to minimize during training: "how surprised was I by the correct next word?" Lower is better. This is the number you\'d see in a training log, and the challenge\'s ranking metric is a simple transformation of it.',
       whatItDoes:'The training objective. For each position, computes: loss = -log(probability of correct next token). Averaged over all positions and sequences in the batch. This is the number the optimizer tries to minimize.',
       whyItMatters:'Cross-entropy is the standard loss for language modeling. It\'s equivalent to minimizing the KL divergence between the model\'s predictions and the true distribution. The val_loss reported in logs is this metric on the validation set.',
       keyParams:{ reduction:'mean', units:'nats (natural log)' },
@@ -283,6 +298,7 @@ export const NODES = [
   {
     id:'muon_opt', label:'Muon Optimizer', sublabel:'+ Adam for scalars', category:'training',
     details:{
+      plainEnglish:'A newer optimizer specialized for updating the big weight matrices inside the model. Standard optimizers (like Adam) can waste steps making poorly-shaped updates; Muon does an extra math step to keep every update well-conditioned. Especially helpful for small models training on tight budgets. Adam is still used for the smaller parameters like embeddings and biases.',
       whatItDoes:'A specialized optimizer for matrix-shaped parameters. Takes the gradient, applies Nesterov momentum, then orthogonalizes the update via 5 rounds of Newton-Schulz iteration. This projects the update onto the nearest orthogonal matrix, preserving scale. Adam is used separately for embedding and scalar parameters.',
       whyItMatters:'Muon produces update directions that maintain weight matrix conditioning. This is especially important for small models trained quickly \u2014 standard Adam can waste steps on poorly-conditioned updates. The Newton-Schulz orthogonalization is the key innovation.',
       keyParams:{ matrix_lr:'0.04 (baseline) / 0.02 (advanced)', momentum:'0.95 (baseline) / 0.99 (advanced)', backend_steps:'5 Newton-Schulz iterations', embed_lr:'0.05 (Adam)', scalar_lr:'0.04 (Adam)' },
@@ -305,6 +321,7 @@ export const NODES = [
   {
     id:'quantization', label:'Quantization', sublabel:'int8 + zlib (baseline)', category:'training',
     details:{
+      plainEnglish:'After training, the model\'s weights get compressed so the whole thing fits in 16MB. Baseline uses 8-bit numbers; top submissions push down to 6-bit or even 5-bit, buying space for more parameters. Some submissions also train with fake quantization noise baked in (QAT), so the model learns to be robust to the compression before it actually happens.',
       whatItDoes:'After training, compresses the model to fit in 16MB. Per-row quantization: find each row\'s max absolute value, scale to fit integer range, round. Baseline uses int8 (256 levels). Advanced submissions use int6 (64 levels) or int5 (32 levels) for aggressive compression, sometimes with Quantization-Aware Training (QAT) where the model trains with simulated quantization noise.',
       whyItMatters:'This is THE critical constraint of the challenge. Better quantization = more parameters in 16MB = better model. Going from int8 to int6 saves ~25% space, enabling wider MLPs or more layers. QAT with STE (Straight-Through Estimator) teaches the model to be robust to quantization noise.',
       keyParams:{ baseline:'int8 [-127, 127] + zlib-9', advanced:'int6 [-32, 31] or int5 [-16, 15] + zstd-22', passthrough:'embeddings kept in fp16', qat:'STE during training (rank3, smear)' },
@@ -327,6 +344,7 @@ export const NODES = [
   {
     id:'swa', label:'Stochastic Weight Averaging', sublabel:'advanced', category:'training', advanced:true,
     details:{
+      plainEnglish:'Near the end of training, the model takes snapshots of itself every few steps and averages them all together at the very end. The averaged weights are smoother than any individual snapshot, which makes them survive compression much better — a small trick that directly improves the final score.',
       whatItDoes:'Periodically snapshots the model weights during the last portion of training, then averages all snapshots together. The SOTA collects every 50 steps during the last 40% of training (~24 checkpoints), then uses the averaged weights for the final model.',
       whyItMatters:'SWA produces smoother weight distributions that quantize better. Individual training runs produce sharp, noisy weights; averaging smooths them out. This directly reduces the quantization penalty (the gap between float and quantized model quality).',
       keyParams:{ start_frac:'0.4 (SOTA) / 0.5 (#2)', every:'50 steps', checkpoints:'~24-30' },
@@ -344,6 +362,7 @@ export const NODES = [
   {
     id:'sliding_eval', label:'Sliding Window Eval', sublabel:'advanced', category:'training', advanced:true,
     details:{
+      plainEnglish:'A smarter way to score the model at evaluation time. Instead of chopping the test text into non-overlapping chunks (which means the first word of each chunk has zero context to work with), this slides a window forward 64 tokens at a time, so almost every token gets evaluated with a thousand tokens of context behind it. Costs 16x more forward passes but improves the score for free — no retraining required.',
       whatItDoes:'Instead of evaluating on non-overlapping chunks of 1024 tokens, slides a window with stride=64. Each forward pass processes 1024 tokens, but only the last 64 are scored. This means every validation token gets evaluated with 960+ tokens of context, dramatically improving BPB.',
       whyItMatters:'Standard evaluation throws away context at chunk boundaries \u2014 the first token of each chunk has zero context. Sliding window gives near-maximum context to every token. This alone improves BPB by ~0.032 with zero training changes. It\'s slower (16x more forward passes) but within the 10-min eval budget on H100s.',
       keyParams:{ stride:'64', window:'1024 (or seq_len)', improvement:'~0.032 BPB free' },
@@ -363,6 +382,7 @@ export const NODES = [
   {
     id:'lora_ttt', label:'LoRA TTT', sublabel:'test-time training', category:'training', advanced:true,
     details:{
+      plainEnglish:'A fundamentally different approach: let the model briefly adapt to each test document as it reads it. Tiny trainable adapters are added to a few layers, the model takes one quick training step on the document\'s own tokens, and then it\'s evaluated. The adapters get reset between documents. It literally learns from the test data as it goes — without cheating, since it only trains on tokens it has already been scored on.',
       whatItDoes:'At evaluation time, attaches small rank-8 LoRA adapters to Q and V projections in every layer. For each validation document, takes one Adam step to fine-tune these adapters on the document\'s tokens, then evaluates. Adapters are reset between documents. The model literally learns from the test data as it evaluates.',
       whyItMatters:'A fundamentally different approach: instead of building a better static model, make the model adapt at test time. Only trains on tokens already scored (no cheating). The LoRA adapters add minimal parameters and the single Adam step is fast. Achieved 1.1928 BPB \u2014 competitive but not SOTA.',
       keyParams:{ rank:'8', targets:'Q, V projections + lm_head', optimizer:'Adam per document', steps:'1 per chunk' },

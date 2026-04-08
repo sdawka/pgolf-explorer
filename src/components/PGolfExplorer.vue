@@ -332,6 +332,10 @@ onMounted(() => {
 
             <!-- LEARN TAB -->
             <template v-if="detailTab==='learn'">
+              <div class="analogy-box" v-if="selectedNode.details.plainEnglish">
+                <div class="analogy-label">In plain English</div>
+                <p>{{ selectedNode.details.plainEnglish }}</p>
+              </div>
               <div class="learn-section">
                 <h3>What it does</h3>
                 <p>{{selectedNode.details.whatItDoes}}</p>
@@ -491,4 +495,7 @@ onMounted(() => {
     .sidebar { max-height:150px; border-right:none; border-bottom:1px solid var(--border); }
     .detail { max-height:40vh; border-left:none; border-top:1px solid var(--border); }
   }
+  .analogy-box { background: rgba(108,140,255,0.08); border-left: 3px solid var(--accent); padding: 10px 12px; margin-bottom: 16px; border-radius: 4px; }
+  .analogy-box .analogy-label { font-size: 9px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--accent); margin-bottom: 4px; }
+  .analogy-box p { font-size: 12px; line-height: 1.6; color: var(--text); font-style: italic; }
 </style>
