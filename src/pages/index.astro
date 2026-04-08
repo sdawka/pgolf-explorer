@@ -1,0 +1,47 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+---
+
+<BaseLayout title="PGolf Explorer" activeRoute="home">
+  <main class="landing">
+    <h1>Parameter Golf Explorers</h1>
+    <p class="tagline">Three interactive explorers of small-model language architectures.</p>
+
+    <section class="card-grid">
+      <a href="/explorer" class="card">
+        <h2>PG Golf Architecture Explorer</h2>
+        <p>The ~16MB language model challenge. Click through every layer of the baseline and the top submissions, with plain-English explanations next to the technical deep-dive.</p>
+      </a>
+
+      <a href="/gemma" class="card">
+        <h2>Gemma 4 Architecture Explorer</h2>
+        <p>Google's Gemma 4 model family. Flow view, hack matrix, and a function map that groups the architecture by what each piece actually does.</p>
+      </a>
+
+      <a href="/hacks" class="card">
+        <h2>Gemma 4 Hack Recipes</h2>
+        <p>Runnable recipes for fine-tuning, quantizing, and shipping Gemma 4 on consumer hardware.</p>
+      </a>
+    </section>
+  </main>
+</BaseLayout>
+
+<style>
+  .landing { padding: 48px 32px; max-width: 900px; margin: 0 auto; overflow-y: auto; height: calc(100vh - 42px); }
+  .landing h1 { font-size: 22px; margin-bottom: 8px; }
+  .landing .tagline { color: var(--text2); font-size: 13px; margin-bottom: 32px; }
+  .card-grid { display: grid; grid-template-columns: 1fr; gap: 14px; }
+  .card {
+    display: block;
+    text-decoration: none;
+    color: var(--text);
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 18px 20px;
+    transition: border-color 0.15s;
+  }
+  .card:hover { border-color: var(--accent); }
+  .card h2 { font-size: 14px; color: var(--accent); margin-bottom: 6px; }
+  .card p { font-size: 12px; line-height: 1.6; color: var(--text2); }
+</style>
