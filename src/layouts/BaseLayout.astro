@@ -1,0 +1,29 @@
+---
+import '../styles/theme.css';
+
+interface Props {
+  title: string;
+  activeRoute?: 'home' | 'explorer' | 'gemma' | 'hacks';
+}
+
+const { title, activeRoute = 'home' } = Astro.props;
+---
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{title}</title>
+  </head>
+  <body>
+    <nav class="site-nav">
+      <span class="brand">PGolf Explorer</span>
+      <a href="/" class={activeRoute === 'home' ? 'active' : ''}>Home</a>
+      <a href="/explorer" class={activeRoute === 'explorer' ? 'active' : ''}>PG Golf</a>
+      <a href="/gemma" class={activeRoute === 'gemma' ? 'active' : ''}>Gemma 4</a>
+      <a href="/hacks" class={activeRoute === 'hacks' ? 'active' : ''}>Hacks</a>
+    </nav>
+    <slot />
+  </body>
+</html>

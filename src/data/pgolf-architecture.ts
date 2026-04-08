@@ -1,311 +1,7 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Parameter Golf Architecture Explorer</title>
-<script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
-<style>
-  :root {
-    --bg: #0f1117;
-    --bg2: #1a1d27;
-    --bg3: #242836;
-    --border: #2e3345;
-    --text: #e0e0e8;
-    --text2: #9498a8;
-    --accent: #6c8cff;
-    --gold: #ffd700;
-    --cat-embedding: #4A90D9;
-    --cat-normalization: #7B68EE;
-    --cat-attention: #E8834A;
-    --cat-mlp: #50C878;
-    --cat-structural: #CD853F;
-    --cat-output: #DC4C64;
-    --cat-training: #708090;
-  }
-  * { margin:0; padding:0; box-sizing:border-box; }
-  body { font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace; background: var(--bg); color: var(--text); height:100vh; overflow:hidden; }
-  #app { display:grid; grid-template-rows: auto 1fr; height:100vh; }
-
-  /* Header */
-  .header { background:var(--bg2); border-bottom:1px solid var(--border); padding:12px 20px; display:flex; align-items:center; gap:20px; flex-wrap:wrap; }
-  .header h1 { font-size:16px; font-weight:600; letter-spacing:0.5px; white-space:nowrap; }
-  .header h1 span { color:var(--accent); }
-  .header-controls { display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
-  .header-controls label { font-size:11px; color:var(--text2); text-transform:uppercase; letter-spacing:1px; }
-  .header-controls select { background:var(--bg3); border:1px solid var(--border); color:var(--text); padding:4px 8px; border-radius:4px; font-family:inherit; font-size:12px; cursor:pointer; }
-  .legend { display:flex; gap:10px; margin-left:auto; flex-wrap:wrap; }
-  .legend-item { display:flex; align-items:center; gap:4px; font-size:10px; color:var(--text2); }
-  .legend-dot { width:8px; height:8px; border-radius:50%; }
-
-  /* Main layout */
-  .main { display:grid; grid-template-columns: 200px 1fr 360px; overflow:hidden; }
-
-  /* Sidebar */
-  .sidebar { background:var(--bg2); border-right:1px solid var(--border); overflow-y:auto; padding:8px 0; }
-  .sidebar-search { padding:6px 12px; }
-  .sidebar-search input { width:100%; background:var(--bg3); border:1px solid var(--border); color:var(--text); padding:6px 8px; border-radius:4px; font-family:inherit; font-size:11px; }
-  .sidebar-group { margin-top:8px; }
-  .sidebar-group-label { font-size:9px; text-transform:uppercase; letter-spacing:1.5px; color:var(--text2); padding:4px 12px; }
-  .sidebar-item { padding:6px 12px; cursor:pointer; display:flex; align-items:center; gap:8px; font-size:12px; transition:background 0.15s; }
-  .sidebar-item:hover { background:var(--bg3); }
-  .sidebar-item.active { background:var(--bg3); border-left:2px solid var(--accent); }
-  .sidebar-item.sub { padding-left:28px; font-size:11px; color:var(--text2); }
-  .sidebar-dot { width:6px; height:6px; border-radius:50%; flex-shrink:0; }
-  .sidebar-item .change-badge { width:6px; height:6px; border-radius:50%; background:var(--gold); margin-left:auto; flex-shrink:0; }
-  .sidebar-item .note-badge { font-size:9px; color:var(--accent); margin-left:auto; }
-
-  /* Diagram */
-  .diagram-container { overflow:auto; padding:20px; display:flex; justify-content:center; }
-  .diagram-container svg { flex-shrink:0; }
-  .node-rect { cursor:pointer; transition:opacity 0.2s; }
-  .node-rect:hover { opacity:0.9; }
-  .node-label { font-family:inherit; font-size:11px; fill:white; pointer-events:none; font-weight:500; }
-  .node-sublabel { font-family:inherit; font-size:9px; fill:rgba(255,255,255,0.7); pointer-events:none; }
-  .arrow-line { stroke:var(--border); stroke-width:1.5; }
-  .arrow-head { fill:var(--border); }
-  .skip-path { fill:none; stroke:var(--cat-structural); stroke-width:1.5; stroke-dasharray:4,3; opacity:0.6; }
-  .block-container { fill:none; stroke:var(--border); stroke-width:1; stroke-dasharray:6,3; rx:8; }
-  .ghost-node { opacity:0.3; stroke-dasharray:4,2; }
-  @keyframes goldPulse { 0%,100%{stroke-opacity:0.4} 50%{stroke-opacity:1} }
-  .changed-highlight { stroke:var(--gold); stroke-width:2.5; stroke-dasharray:none; animation:goldPulse 1.5s infinite; }
-
-  /* Detail Panel */
-  .detail { background:var(--bg2); border-left:1px solid var(--border); overflow-y:auto; display:flex; flex-direction:column; }
-  .detail-empty { display:flex; align-items:center; justify-content:center; height:100%; color:var(--text2); font-size:13px; text-align:center; padding:20px; }
-  .detail-header { padding:16px; border-bottom:1px solid var(--border); }
-  .detail-header h2 { font-size:15px; font-weight:600; margin-bottom:4px; }
-  .detail-header .category-tag { font-size:10px; text-transform:uppercase; letter-spacing:1px; padding:2px 6px; border-radius:3px; display:inline-block; }
-  .detail-tabs { display:flex; border-bottom:1px solid var(--border); }
-  .detail-tab { flex:1; padding:8px; text-align:center; font-size:11px; cursor:pointer; text-transform:uppercase; letter-spacing:1px; color:var(--text2); border-bottom:2px solid transparent; transition:all 0.15s; }
-  .detail-tab:hover { color:var(--text); }
-  .detail-tab.active { color:var(--accent); border-bottom-color:var(--accent); }
-  .detail-body { padding:16px; flex:1; overflow-y:auto; }
-
-  /* Learn tab */
-  .learn-section { margin-bottom:16px; }
-  .learn-section h3 { font-size:11px; text-transform:uppercase; letter-spacing:1px; color:var(--accent); margin-bottom:6px; }
-  .learn-section p { font-size:12px; line-height:1.6; color:var(--text); }
-  .learn-section ul { list-style:none; padding:0; }
-  .learn-section li { font-size:12px; padding:3px 0; color:var(--text); }
-  .learn-section li::before { content:'\2022'; color:var(--accent); margin-right:8px; }
-  .param-table { width:100%; font-size:11px; border-collapse:collapse; }
-  .param-table td { padding:3px 8px; border-bottom:1px solid var(--border); }
-  .param-table td:first-child { color:var(--accent); white-space:nowrap; }
-  .study-link { display:block; font-size:11px; color:var(--accent); text-decoration:none; padding:3px 0; }
-  .study-link:hover { text-decoration:underline; }
-
-  /* Compare tab */
-  .compare-item { padding:8px; margin-bottom:6px; border-radius:4px; border:1px solid var(--border); font-size:12px; }
-  .compare-item.changed { border-color:var(--gold); background:rgba(255,215,0,0.05); }
-  .compare-item .sub-label { font-size:10px; color:var(--text2); }
-  .compare-item .sub-score { font-size:10px; color:var(--gold); }
-  .compare-item .change-text { margin-top:4px; color:var(--text); line-height:1.5; }
-
-  /* Notes tab */
-  .note-item { background:var(--bg3); border-radius:4px; padding:8px; margin-bottom:6px; position:relative; }
-  .note-item.done { opacity:0.5; }
-  .note-item textarea { width:100%; background:transparent; border:none; color:var(--text); font-family:inherit; font-size:11px; resize:vertical; min-height:40px; line-height:1.5; }
-  .note-item textarea:focus { outline:none; }
-  .note-controls { display:flex; gap:6px; align-items:center; margin-top:4px; }
-  .note-controls label { font-size:10px; color:var(--text2); display:flex; align-items:center; gap:4px; cursor:pointer; }
-  .note-controls button { background:none; border:none; color:var(--text2); cursor:pointer; font-size:10px; padding:2px 4px; }
-  .note-controls button:hover { color:var(--cat-output); }
-  .add-note-btn { width:100%; padding:8px; background:var(--bg3); border:1px dashed var(--border); border-radius:4px; color:var(--text2); font-family:inherit; font-size:11px; cursor:pointer; margin-top:8px; }
-  .add-note-btn:hover { border-color:var(--accent); color:var(--accent); }
-
-  /* Responsive */
-  @media (max-width:900px) {
-    .main { grid-template-columns:1fr; grid-template-rows:auto 1fr auto; }
-    .sidebar { max-height:150px; border-right:none; border-bottom:1px solid var(--border); }
-    .detail { max-height:40vh; border-left:none; border-top:1px solid var(--border); }
-  }
-</style>
-</head>
-<body>
-<div id="app">
-  <!-- HEADER -->
-  <div class="header">
-    <h1><span>Parameter Golf</span> Architecture Explorer</h1>
-    <div class="header-controls">
-      <div>
-        <label>Viewing</label><br>
-        <select v-model="viewSubmission">
-          <option v-for="s in submissions" :key="s.id" :value="s.id">{{s.label}} ({{s.score}})</option>
-        </select>
-      </div>
-      <div>
-        <label>Compare with</label><br>
-        <select v-model="compareSubmission">
-          <option value="">None</option>
-          <option v-for="s in submissions" :key="s.id" :value="s.id" v-show="s.id !== viewSubmission">{{s.label}} ({{s.score}})</option>
-        </select>
-      </div>
-    </div>
-    <div class="legend">
-      <div class="legend-item" v-for="(cat, key) in categories" :key="key">
-        <div class="legend-dot" :style="{background:cat.color}"></div>
-        {{cat.label}}
-      </div>
-    </div>
-  </div>
-
-  <!-- MAIN -->
-  <div class="main">
-    <!-- SIDEBAR -->
-    <div class="sidebar">
-      <div class="sidebar-search">
-        <input v-model="search" placeholder="Search nodes...">
-      </div>
-      <template v-for="(cat, key) in categories" :key="key">
-        <div class="sidebar-group" v-if="nodesInCategory(key).length">
-          <div class="sidebar-group-label">{{cat.label}}</div>
-          <div v-for="n in nodesInCategory(key)" :key="n.id"
-               class="sidebar-item" :class="{active: selectedNodeId===n.id, sub: n.isSub}"
-               @click="selectNode(n.id)">
-            <div class="sidebar-dot" :style="{background:cat.color}"></div>
-            {{n.label}}
-            <span class="change-badge" v-if="isChanged(n.id)" title="Changed in comparison"></span>
-            <span class="note-badge" v-else-if="getNotes(n.id).length">{{getNotes(n.id).length}}</span>
-          </div>
-        </div>
-      </template>
-    </div>
-
-    <!-- DIAGRAM -->
-    <div class="diagram-container">
-      <svg :width="svgWidth" :height="svgHeight" xmlns="http://www.w3.org/2000/svg">
-        <!-- Arrows -->
-        <template v-for="arrow in arrows" :key="arrow.id">
-          <line :x1="arrow.x1" :y1="arrow.y1" :x2="arrow.x2" :y2="arrow.y2" class="arrow-line"/>
-          <polygon :points="arrowHead(arrow.x2,arrow.y2)" class="arrow-head"/>
-        </template>
-
-        <!-- U-Net skip curves -->
-        <path v-for="skip in skipPaths" :key="skip.id" :d="skip.d" class="skip-path"/>
-
-        <!-- Block containers -->
-        <rect v-for="blk in blockContainers" :key="blk.id"
-              :x="blk.x" :y="blk.y" :width="blk.w" :height="blk.h"
-              class="block-container" rx="8"/>
-        <text v-for="blk in blockContainers" :key="blk.id+'lbl'"
-              :x="blk.x+8" :y="blk.y+14" font-size="9" fill="#9498a8" font-family="inherit">
-          {{blk.label}}
-        </text>
-
-        <!-- Nodes -->
-        <g v-for="n in visibleNodes" :key="n.id" :transform="'translate('+n.x+','+n.y+')'"
-           @click="selectNode(n.id)" style="cursor:pointer">
-          <rect :width="n.w" :height="n.h" :rx="6"
-                :fill="categories[n.category].color"
-                :class="{
-                  'node-rect':true,
-                  'ghost-node': isGhosted(n.id),
-                  'changed-highlight': isChanged(n.id)
-                }"
-                :stroke="selectedNodeId===n.id ? '#fff' : 'transparent'"
-                stroke-width="2"
-                :opacity="isGhosted(n.id) ? 0.25 : 1"/>
-          <text :x="n.w/2" :y="n.h/2 - (n.sublabel?4:0)" text-anchor="middle" dominant-baseline="middle" class="node-label">
-            {{n.label}}
-          </text>
-          <text v-if="n.sublabel" :x="n.w/2" :y="n.h/2+10" text-anchor="middle" dominant-baseline="middle" class="node-sublabel">
-            {{n.sublabel}}
-          </text>
-        </g>
-      </svg>
-    </div>
-
-    <!-- DETAIL PANEL -->
-    <div class="detail">
-      <div v-if="!selectedNode" class="detail-empty">
-        Click a node in the diagram<br>or sidebar to explore it
-      </div>
-      <template v-else>
-        <div class="detail-header">
-          <h2>{{selectedNode.label}}</h2>
-          <span class="category-tag" :style="{background:categories[selectedNode.category].color+'33', color:categories[selectedNode.category].color}">
-            {{categories[selectedNode.category].label}}
-          </span>
-        </div>
-        <div class="detail-tabs">
-          <div class="detail-tab" :class="{active:detailTab==='learn'}" @click="detailTab='learn'">Learn</div>
-          <div class="detail-tab" :class="{active:detailTab==='compare'}" @click="detailTab='compare'">Compare</div>
-          <div class="detail-tab" :class="{active:detailTab==='notes'}" @click="detailTab='notes'">
-            Notes <span v-if="getNotes(selectedNodeId).length">({{getNotes(selectedNodeId).length}})</span>
-          </div>
-        </div>
-        <div class="detail-body">
-
-          <!-- LEARN TAB -->
-          <template v-if="detailTab==='learn'">
-            <div class="learn-section">
-              <h3>What it does</h3>
-              <p>{{selectedNode.details.whatItDoes}}</p>
-            </div>
-            <div class="learn-section">
-              <h3>Why it matters</h3>
-              <p>{{selectedNode.details.whyItMatters}}</p>
-            </div>
-            <div class="learn-section" v-if="selectedNode.details.keyParams">
-              <h3>Key parameters (baseline)</h3>
-              <table class="param-table">
-                <tr v-for="(v,k) in selectedNode.details.keyParams" :key="k">
-                  <td>{{k}}</td><td>{{v}}</td>
-                </tr>
-              </table>
-            </div>
-            <div class="learn-section" v-if="selectedNode.details.alternatives">
-              <h3>Alternatives to explore</h3>
-              <ul><li v-for="a in selectedNode.details.alternatives" :key="a">{{a}}</li></ul>
-            </div>
-            <div class="learn-section" v-if="selectedNode.details.studyFurther">
-              <h3>Study further</h3>
-              <a class="study-link" v-for="s in selectedNode.details.studyFurther" :key="s.topic"
-                 :href="s.url" target="_blank" rel="noopener">{{s.topic}}</a>
-            </div>
-          </template>
-
-          <!-- COMPARE TAB -->
-          <template v-if="detailTab==='compare'">
-            <div v-for="s in submissions" :key="s.id" class="compare-item"
-                 :class="{changed: getChange(selectedNodeId, s.id)}">
-              <div style="display:flex;justify-content:space-between;align-items:center">
-                <strong>{{s.label}}</strong>
-                <span class="sub-score">{{s.score}} BPB</span>
-              </div>
-              <div class="sub-label">{{s.date}} &middot; {{s.layers}}L &middot; {{s.mlpMult}}x MLP</div>
-              <div class="change-text" v-if="getChange(selectedNodeId, s.id)">
-                {{getChange(selectedNodeId, s.id)}}
-              </div>
-              <div class="change-text" v-else style="color:var(--text2)">No change from baseline</div>
-            </div>
-          </template>
-
-          <!-- NOTES TAB -->
-          <template v-if="detailTab==='notes'">
-            <div v-for="note in getNotes(selectedNodeId)" :key="note.id"
-                 class="note-item" :class="{done:note.done}">
-              <textarea v-model="note.text" @input="saveNotes" placeholder="Write a note..."></textarea>
-              <div class="note-controls">
-                <label><input type="checkbox" v-model="note.isTodo" @change="saveNotes"> TODO</label>
-                <label v-if="note.isTodo"><input type="checkbox" v-model="note.done" @change="saveNotes"> Done</label>
-                <button @click="deleteNote(selectedNodeId, note.id)" style="margin-left:auto">Delete</button>
-              </div>
-            </div>
-            <button class="add-note-btn" @click="addNote(selectedNodeId)">+ Add Note</button>
-          </template>
-        </div>
-      </template>
-    </div>
-  </div>
-</div>
-
-<script>
-const { createApp, ref, computed, watch, onMounted } = Vue;
+// @ts-nocheck
 
 // ─── CATEGORIES ───
-const CATEGORIES = {
+export const CATEGORIES = {
   embedding:     { color:'#4A90D9', label:'Embedding' },
   normalization: { color:'#7B68EE', label:'Normalization' },
   attention:     { color:'#E8834A', label:'Attention' },
@@ -316,7 +12,7 @@ const CATEGORIES = {
 };
 
 // ─── SUBMISSIONS ───
-const SUBMISSIONS = [
+export const SUBMISSIONS = [
   { id:'baseline', label:'Naive Baseline', score:1.2244, date:'2026-03-17', layers:9, mlpMult:2 },
   { id:'sota',     label:'SOTA (10L Int5)', score:1.1428, date:'2026-03-20', layers:10, mlpMult:3 },
   { id:'rank2',    label:'#2 Int6+SmearGate', score:1.1458, date:'2026-03-20', layers:9, mlpMult:3 },
@@ -326,10 +22,11 @@ const SUBMISSIONS = [
 ];
 
 // ─── NODE DATA ───
-const NODES = [
+export const NODES = [
   {
     id:'input_tokens', label:'Input Token IDs', category:'embedding',
     details:{
+      plainEnglish:'Text gets chopped up into small pieces (roughly word fragments), and each piece is swapped for a number. This challenge uses a tiny dictionary of only 1024 possible pieces, which is about 50x smaller than what regular language models use — a deliberate choice to save space.',
       whatItDoes:'Raw integer IDs from the tokenizer. Each text chunk is split into tokens (sub-word pieces) and mapped to integers 0-1023. For this challenge, a 1024-token SentencePiece BPE vocabulary is used \u2014 much smaller than typical LLMs (GPT-2 uses 50K).',
       whyItMatters:'The vocabulary size directly affects model size. A 1024-vocab embedding table is tiny (~512KB) vs a 50K-vocab one (~25MB). In a 16MB budget, this matters enormously. Smaller vocab means more tokens per byte of text, but each token carries less information.',
       keyParams:{ vocab_size:'1024', tokenizer:'SentencePiece BPE', seq_len:'1024 (baseline), 2048-4096 (advanced)' },
@@ -345,6 +42,7 @@ const NODES = [
   {
     id:'tok_emb', label:'Token Embedding', sublabel:'1024 \u00d7 512, tied', category:'embedding',
     details:{
+      plainEnglish:'A big lookup table that turns each numbered word-piece into a list of 512 numbers the model can actually reason about. The same table is reused at the very end to pick the next word — so it does double duty, which is why good submissions keep it in high precision even while compressing everything else.',
       whatItDoes:'A lookup table with 1024 rows and 512 columns. Each token ID selects one row, producing a 512-dimensional vector. This is the model\'s only way to "see" text. The same weight matrix is reused at the output to predict tokens (weight tying), so it serves double duty.',
       whyItMatters:'Weight tying halves the embedding parameter cost. But it means quantization errors here compound \u2014 they affect both input understanding AND output predictions. This is why top submissions keep embeddings in fp16 instead of quantizing them.',
       keyParams:{ shape:'[1024, 512]', dtype:'bf16 compute, fp32 stored', tied:'Yes (shared with output)', init:'N(0, 0.005)' },
@@ -365,6 +63,7 @@ const NODES = [
   {
     id:'bigram_hash', label:'BigramHash', sublabel:'advanced', category:'embedding', advanced:true,
     details:{
+      plainEnglish:'A cheap shortcut for spotting two-word patterns. It takes each pair of consecutive word-pieces, hashes them into a bucket, and looks up a small feature vector for that bucket. This gives the model instant access to "these two words often go together" signals before the expensive layers even run.',
       whatItDoes:'Hashes each consecutive pair of tokens (a "bigram") into a learned embedding table. For example, tokens [42, 17] get hashed to bucket (42*31 + 17) % 10240, which looks up a 128-dim vector, then a linear layer projects it to 512-dim and adds it to the token embedding. This gives the model instant access to 2-token patterns without needing attention.',
       whyItMatters:'Attention is expensive and takes a full layer to see pairs. BigramHash injects bigram features at the embedding level for almost free. The SOTA uses 10240 buckets \u2014 with 1024 vocab, there are ~1M possible bigrams, so collisions are common but the model learns to use the hashed signal anyway.',
       keyParams:{ hash_buckets:'10240 (SOTA) / 4096 (#2)', embed_dim:'128', project_to:'512', scale_init:'0.05' },
@@ -384,6 +83,7 @@ const NODES = [
   {
     id:'smear_gate', label:'SmearGate', sublabel:'advanced', category:'embedding', advanced:true,
     details:{
+      plainEnglish:'A learned knob that blends a small amount of each word into the next one. It starts at almost pure "current word" and the model gradually learns how much of the previous word is worth mixing in, per dimension. Like BigramHash, it gives the model local context for almost free.',
       whatItDoes:'A learned per-dimension gate that blends each token\'s embedding with the previous token\'s embedding. Formula: output = (1 - sigmoid(gate)) * current + sigmoid(gate) * previous. The gate is initialized near 0.95 (almost identity), so the model starts with mostly the current token and gradually learns how much previous-token info to mix in.',
       whyItMatters:'Like BigramHash, this gives the model local (bigram) context before the expensive transformer layers. But SmearGate is continuous and differentiable \u2014 it learns *how much* of the previous token to blend, per dimension. Adds only ~512 parameters.',
       keyParams:{ gate_shape:'[512]', init:'~0.95 (near identity)', params:'~512' },
@@ -403,6 +103,7 @@ const NODES = [
   {
     id:'post_emb_norm', label:'RMSNorm', sublabel:'post-embedding', category:'normalization',
     details:{
+      plainEnglish:'Right after looking up the word vectors, this step rescales them so they all have roughly the same length. Without it, some vectors can be huge and others tiny, which makes training unstable. RMSNorm is a cheaper version of the standard normalization used in most transformers.',
       whatItDoes:'Normalizes each vector by its root-mean-square magnitude: x_norm = x / sqrt(mean(x\u00b2) + \u03b5). Unlike LayerNorm, it has no learnable scale or bias \u2014 it just makes all vectors roughly unit length. Applied immediately after the embedding lookup.',
       whyItMatters:'Without normalization, embedding vectors can have wildly different magnitudes, which makes training unstable. RMSNorm is cheaper than LayerNorm (no mean subtraction or learned params) and works just as well for transformers.',
       keyParams:{ eps:'1e-6', learnable_params:'None' },
@@ -419,6 +120,7 @@ const NODES = [
   {
     id:'encoder_block', label:'Encoder Blocks', sublabel:'layers 0\u20133 (baseline)', category:'structural',
     details:{
+      plainEnglish:'The first half of the model\'s layers. Each layer does two things: let the words look at each other (attention), then think about each word on its own (MLP). The encoder\'s outputs get saved — the second half of the model will reuse them through shortcut connections.',
       whatItDoes:'The first half of the transformer layers. Each block applies attention (letting tokens look at each other) then an MLP (processing each token independently). The encoder stores its outputs for the U-Net skip connections \u2014 decoder layers will reuse these later.',
       whyItMatters:'Splitting into encoder/decoder with skip connections (inspired by U-Net from image segmentation) helps information flow through deep networks. Early layers capture low-level patterns, later layers capture high-level meaning, and skip connections let the decoder access both.',
       keyParams:{ num_layers:'4 (baseline) / 5 (10L) / 5 (11L)', per_block:'ResidMix \u2192 Attn \u2192 MLP' },
@@ -438,6 +140,7 @@ const NODES = [
   {
     id:'resid_mix', label:'Residual Mix', sublabel:'per block', category:'structural', isSub:true,
     details:{
+      plainEnglish:'A small learnable dial per layer that decides how much of the original word vector to mix back in. Deep models can "forget" what the input was by the time they reach the last layer; this lets each layer pull in a fresh reminder whenever it helps.',
       whatItDoes:'A learnable per-dimension blend of two signals: the current hidden state (x) and the original embedding (x0). Formula: output = mix[0] * x + mix[1] * x0. Initialized to [1, 0] (pure current state), the model learns how much initial embedding to re-inject at each layer.',
       whyItMatters:'Deep transformers can "forget" the original input signal as it passes through many layers. Residual mix lets each layer recover input information when needed. This is a lightweight alternative to dense skip connections.',
       keyParams:{ shape:'[2, 512] per block', init:'[ones, zeros]', dtype:'fp32' },
@@ -454,6 +157,7 @@ const NODES = [
   {
     id:'self_attn', label:'Causal Self-Attention', sublabel:'GQA, RoPE, softcap', category:'attention', isSub:true,
     details:{
+      plainEnglish:'The mechanism that lets each word peek at the earlier words and decide which ones matter. It\'s the heart of a transformer — without this step, each word would be processed in isolation. This version uses several efficiency tricks: sharing keys and values across heads (GQA), a trick for encoding word positions without extra parameters (RoPE), and a gentle bound that keeps the attention scores from exploding.',
       whatItDoes:'The core mechanism that lets each token "look at" all previous tokens. Three projections (Q, K, V) transform each token into queries, keys, and values. Attention scores = softmax(Q \u00b7 K\u1d40 / \u221ad). Uses Grouped-Query Attention (8 query heads share 4 KV heads), RoPE for position encoding, per-head learnable q_gain scaling, and softcap (tanh bounding of attention logits to [-30,30]).',
       whyItMatters:'Attention is what makes transformers work \u2014 it\'s the only mechanism that lets tokens interact with each other. GQA (4 KV heads vs 8 query heads) saves ~25% of attention parameters with minimal quality loss. RoPE encodes position information without adding parameters. The q_gain and softcap improve training stability.',
       keyParams:{ num_heads:'8', kv_heads:'4 (GQA)', head_dim:'64', rope_base:'10000', softcap:'30.0', q_gain_init:'1.5' },
@@ -477,6 +181,7 @@ const NODES = [
   {
     id:'mlp', label:'MLP (relu\u00b2)', sublabel:'2x expand (baseline)', category:'mlp', isSub:true,
     details:{
+      plainEnglish:'After attention gathers information, this step does the actual thinking on each word separately. It expands each word into a bigger scratch space, applies a simple activation (square the positive numbers, zero the negatives), then compresses it back down. Most of the model\'s parameters live here, so the top submissions make the scratch space 50% larger and pay for it by compressing weights more aggressively.',
       whatItDoes:'Two linear transformations with a relu-squared activation in between. Expand: 512 \u2192 1024 (or 1536 for 3x). Activate: relu(x)\u00b2 (square the positive values). Compress: 1024 \u2192 512. This is applied independently to each token position. Think of it as the "thinking" step \u2014 attention gathers info, MLP processes it.',
       whyItMatters:'The MLP is where most parameters live. Going from 2x to 3x expansion increases MLP params by 50%, which top submissions fund by using aggressive quantization (int6/int5 instead of int8). relu\u00b2 is cheaper than GELU/SiLU and works well for small models.',
       keyParams:{ expand:'512 \u2192 1024 (2x) or 1536 (3x)', activation:'relu\u00b2', output_init:'zero' },
@@ -499,6 +204,7 @@ const NODES = [
   {
     id:'skip_conn', label:'U-Net Skip Connections', sublabel:'encoder \u2192 decoder', category:'structural',
     details:{
+      plainEnglish:'Shortcut wires that connect the first half of the model directly to the second half. Borrowed from an image-segmentation architecture called U-Net: the early layers\' outputs get handed to the later layers, so information doesn\'t have to survive a long journey through every intermediate step.',
       whatItDoes:'During the encoder phase, each layer\'s output is stored. During the decoder phase, these stored outputs are fed back in reverse order with learned per-dimension weights: decoder_input = x + skip_weight * encoder_output. Layer 4 gets layer 3\'s output, layer 5 gets layer 2\'s, etc.',
       whyItMatters:'Inspired by U-Net from image segmentation. Creates "shortcut" paths that let the decoder access early-layer representations directly. This is especially helpful for small models where information can get lost through many layers.',
       keyParams:{ skip_weights_shape:'[num_skips, 512]', init:'ones', dtype:'fp32 (not quantized)' },
@@ -514,6 +220,7 @@ const NODES = [
   {
     id:'decoder_block', label:'Decoder Blocks', sublabel:'layers 4\u20138 (baseline)', category:'structural',
     details:{
+      plainEnglish:'The second half of the model\'s layers. Structurally identical to the encoder blocks, but these layers also receive the shortcut wires from the encoder. Their job is to refine everything toward the final word prediction.',
       whatItDoes:'The second half of the transformer layers. Identical structure to encoder blocks (ResidMix \u2192 Attention \u2192 MLP) but also receives skip connection inputs from the encoder. The decoder refines the representation toward the final prediction.',
       whyItMatters:'The encoder-decoder split with skip connections creates an information bottleneck and then expands back \u2014 forcing the model to learn compressed representations in the middle layers.',
       keyParams:{ num_layers:'5 (baseline) / 5 (10L) / 6 (11L)' },
@@ -531,6 +238,7 @@ const NODES = [
   {
     id:'final_norm', label:'Final RMSNorm', category:'normalization',
     details:{
+      plainEnglish:'One last rescaling after all the layers have run. Makes sure the final vectors have a consistent size before the model commits to a word choice. Same rescaling trick as the one used right after the embedding.',
       whatItDoes:'Same RMSNorm as before, applied after all transformer blocks. Normalizes the final hidden states before projecting to vocabulary logits.',
       whyItMatters:'Ensures the output vectors have consistent scale before the logit projection. Without this, different inputs could produce wildly different logit magnitudes, making training unstable.',
       keyParams:{ eps:'1e-6' },
@@ -544,6 +252,7 @@ const NODES = [
   {
     id:'output_proj', label:'Output Projection', sublabel:'tied embedding', category:'output',
     details:{
+      plainEnglish:'The final step: compare the model\'s current vector against every possible word in the dictionary and score each one. Because this reuses the exact same table from the input step (weight tying), it costs zero extra parameters — a huge win when the whole model has to fit in 16 megabytes.',
       whatItDoes:'Multiplies the final hidden state by the transpose of the token embedding matrix: logits = hidden @ embedding.T. This produces a score for each vocabulary token. Because the same weight matrix is used for input embedding and output projection (weight tying), this is essentially free \u2014 no extra parameters.',
       whyItMatters:'Without weight tying, you\'d need a separate [512, 1024] output projection \u2014 another ~512K parameters. In a 16MB budget, that\'s a lot. Weight tying also acts as a regularizer, forcing the embedding to work well for both input and output.',
       keyParams:{ output_shape:'[batch*seq, 1024]', tied_to:'tok_emb.weight' },
@@ -558,6 +267,7 @@ const NODES = [
   {
     id:'logit_softcap', label:'Logit Softcap', sublabel:'tanh(\u00b730)', category:'output',
     details:{
+      plainEnglish:'A gentle ceiling on how confident the model is allowed to be. Values near zero pass through unchanged, but extreme values get squashed back toward ±30. Keeps the model from going all-in on a single word prediction, which helps both training stability and compression.',
       whatItDoes:'Bounds the logits to [-30, 30] using a soft capping function: capped = 30 * tanh(logits / 30). Values near zero pass through unchanged; extreme values are squashed. Inspired by Google\'s Gemma/Gemini models.',
       whyItMatters:'Prevents the model from becoming overconfident by producing extremely large logits. This improves training stability and can help with quantization (bounded values are easier to quantize precisely).',
       keyParams:{ cap:'30.0', formula:'cap * tanh(x / cap)' },
@@ -572,6 +282,7 @@ const NODES = [
   {
     id:'ce_loss', label:'Cross-Entropy Loss', category:'output',
     details:{
+      plainEnglish:'The score the model is trying to minimize during training: "how surprised was I by the correct next word?" Lower is better. This is the number you\'d see in a training log, and the challenge\'s ranking metric is a simple transformation of it.',
       whatItDoes:'The training objective. For each position, computes: loss = -log(probability of correct next token). Averaged over all positions and sequences in the batch. This is the number the optimizer tries to minimize.',
       whyItMatters:'Cross-entropy is the standard loss for language modeling. It\'s equivalent to minimizing the KL divergence between the model\'s predictions and the true distribution. The val_loss reported in logs is this metric on the validation set.',
       keyParams:{ reduction:'mean', units:'nats (natural log)' },
@@ -587,6 +298,7 @@ const NODES = [
   {
     id:'muon_opt', label:'Muon Optimizer', sublabel:'+ Adam for scalars', category:'training',
     details:{
+      plainEnglish:'A newer optimizer specialized for updating the big weight matrices inside the model. Standard optimizers (like Adam) can waste steps making poorly-shaped updates; Muon does an extra math step to keep every update well-conditioned. Especially helpful for small models training on tight budgets. Adam is still used for the smaller parameters like embeddings and biases.',
       whatItDoes:'A specialized optimizer for matrix-shaped parameters. Takes the gradient, applies Nesterov momentum, then orthogonalizes the update via 5 rounds of Newton-Schulz iteration. This projects the update onto the nearest orthogonal matrix, preserving scale. Adam is used separately for embedding and scalar parameters.',
       whyItMatters:'Muon produces update directions that maintain weight matrix conditioning. This is especially important for small models trained quickly \u2014 standard Adam can waste steps on poorly-conditioned updates. The Newton-Schulz orthogonalization is the key innovation.',
       keyParams:{ matrix_lr:'0.04 (baseline) / 0.02 (advanced)', momentum:'0.95 (baseline) / 0.99 (advanced)', backend_steps:'5 Newton-Schulz iterations', embed_lr:'0.05 (Adam)', scalar_lr:'0.04 (Adam)' },
@@ -609,6 +321,7 @@ const NODES = [
   {
     id:'quantization', label:'Quantization', sublabel:'int8 + zlib (baseline)', category:'training',
     details:{
+      plainEnglish:'After training, the model\'s weights get compressed so the whole thing fits in 16MB. Baseline uses 8-bit numbers; top submissions push down to 6-bit or even 5-bit, buying space for more parameters. Some submissions also train with fake quantization noise baked in (QAT), so the model learns to be robust to the compression before it actually happens.',
       whatItDoes:'After training, compresses the model to fit in 16MB. Per-row quantization: find each row\'s max absolute value, scale to fit integer range, round. Baseline uses int8 (256 levels). Advanced submissions use int6 (64 levels) or int5 (32 levels) for aggressive compression, sometimes with Quantization-Aware Training (QAT) where the model trains with simulated quantization noise.',
       whyItMatters:'This is THE critical constraint of the challenge. Better quantization = more parameters in 16MB = better model. Going from int8 to int6 saves ~25% space, enabling wider MLPs or more layers. QAT with STE (Straight-Through Estimator) teaches the model to be robust to quantization noise.',
       keyParams:{ baseline:'int8 [-127, 127] + zlib-9', advanced:'int6 [-32, 31] or int5 [-16, 15] + zstd-22', passthrough:'embeddings kept in fp16', qat:'STE during training (rank3, smear)' },
@@ -631,6 +344,7 @@ const NODES = [
   {
     id:'swa', label:'Stochastic Weight Averaging', sublabel:'advanced', category:'training', advanced:true,
     details:{
+      plainEnglish:'Near the end of training, the model takes snapshots of itself every few steps and averages them all together at the very end. The averaged weights are smoother than any individual snapshot, which makes them survive compression much better — a small trick that directly improves the final score.',
       whatItDoes:'Periodically snapshots the model weights during the last portion of training, then averages all snapshots together. The SOTA collects every 50 steps during the last 40% of training (~24 checkpoints), then uses the averaged weights for the final model.',
       whyItMatters:'SWA produces smoother weight distributions that quantize better. Individual training runs produce sharp, noisy weights; averaging smooths them out. This directly reduces the quantization penalty (the gap between float and quantized model quality).',
       keyParams:{ start_frac:'0.4 (SOTA) / 0.5 (#2)', every:'50 steps', checkpoints:'~24-30' },
@@ -648,6 +362,7 @@ const NODES = [
   {
     id:'sliding_eval', label:'Sliding Window Eval', sublabel:'advanced', category:'training', advanced:true,
     details:{
+      plainEnglish:'A smarter way to score the model at evaluation time. Instead of chopping the test text into non-overlapping chunks (which means the first word of each chunk has zero context to work with), this slides a window forward 64 tokens at a time, so almost every token gets evaluated with a thousand tokens of context behind it. Costs 16x more forward passes but improves the score for free — no retraining required.',
       whatItDoes:'Instead of evaluating on non-overlapping chunks of 1024 tokens, slides a window with stride=64. Each forward pass processes 1024 tokens, but only the last 64 are scored. This means every validation token gets evaluated with 960+ tokens of context, dramatically improving BPB.',
       whyItMatters:'Standard evaluation throws away context at chunk boundaries \u2014 the first token of each chunk has zero context. Sliding window gives near-maximum context to every token. This alone improves BPB by ~0.032 with zero training changes. It\'s slower (16x more forward passes) but within the 10-min eval budget on H100s.',
       keyParams:{ stride:'64', window:'1024 (or seq_len)', improvement:'~0.032 BPB free' },
@@ -667,6 +382,7 @@ const NODES = [
   {
     id:'lora_ttt', label:'LoRA TTT', sublabel:'test-time training', category:'training', advanced:true,
     details:{
+      plainEnglish:'A fundamentally different approach: let the model briefly adapt to each test document as it reads it. Tiny trainable adapters are added to a few layers, the model takes one quick training step on the document\'s own tokens, and then it\'s evaluated. The adapters get reset between documents. It literally learns from the test data as it goes — without cheating, since it only trains on tokens it has already been scored on.',
       whatItDoes:'At evaluation time, attaches small rank-8 LoRA adapters to Q and V projections in every layer. For each validation document, takes one Adam step to fine-tune these adapters on the document\'s tokens, then evaluates. Adapters are reset between documents. The model literally learns from the test data as it evaluates.',
       whyItMatters:'A fundamentally different approach: instead of building a better static model, make the model adapt at test time. Only trains on tokens already scored (no cheating). The LoRA adapters add minimal parameters and the single Adam step is fast. Achieved 1.1928 BPB \u2014 competitive but not SOTA.',
       keyParams:{ rank:'8', targets:'Q, V projections + lm_head', optimizer:'Adam per document', steps:'1 per chunk' },
@@ -685,16 +401,16 @@ const NODES = [
 ];
 
 // ─── LAYOUT CONFIG ───
-const NODE_W = 200;
-const NODE_H = 42;
-const GAP_Y = 16;
-const SUB_NODE_W = 170;
-const SUB_NODE_H = 36;
-const SUB_GAP = 10;
-const OFFSET_X = 100;
+export const NODE_W = 200;
+export const NODE_H = 42;
+export const GAP_Y = 16;
+export const SUB_NODE_W = 170;
+export const SUB_NODE_H = 36;
+export const SUB_GAP = 10;
+export const OFFSET_X = 100;
 
 // Main flow order and nesting
-const FLOW = [
+export const FLOW = [
   'input_tokens',
   'tok_emb',
   'bigram_hash',
@@ -714,213 +430,3 @@ const FLOW = [
   'sliding_eval',
   'lora_ttt',
 ];
-
-function generateId() {
-  return Math.random().toString(36).substr(2,9);
-}
-
-createApp({
-  setup() {
-    const selectedNodeId = ref(null);
-    const viewSubmission = ref('baseline');
-    const compareSubmission = ref('');
-    const detailTab = ref('learn');
-    const search = ref('');
-    const userNotes = ref(loadNotes());
-
-    const categories = CATEGORIES;
-    const submissions = SUBMISSIONS;
-
-    // ─── Node lookup ───
-    const nodeMap = {};
-    NODES.forEach(n => nodeMap[n.id] = n);
-
-    const selectedNode = computed(() => nodeMap[selectedNodeId.value] || null);
-
-    // ─── Layout computation ───
-    const layout = computed(() => {
-      const nodes = [];
-      const arrows = [];
-      const blocks = [];
-      const skips = [];
-      let y = 20;
-      const cx = 220; // center x for main nodes
-      let prevMainId = null;
-      let prevMainBottom = 0;
-      let encoderBlockY = 0;
-      let encoderBlockBottom = 0;
-      let decoderBlockY = 0;
-      let decoderBlockBottom = 0;
-
-      for (const item of FLOW) {
-        if (item === '__sep__') {
-          y += 30;
-          prevMainId = null;
-          continue;
-        }
-        if (typeof item === 'string') {
-          const nd = nodeMap[item];
-          if (!nd) continue;
-          const x = cx - NODE_W/2;
-          nodes.push({ ...nd, x, y, w:NODE_W, h:NODE_H });
-          if (prevMainId) {
-            arrows.push({ id:prevMainId+'->'+item, x1:cx, y1:prevMainBottom, x2:cx, y2:y });
-          }
-          prevMainId = item;
-          prevMainBottom = y + NODE_H;
-          y += NODE_H + GAP_Y;
-        } else if (item.block) {
-          // Block container with sub-nodes
-          const blockNd = nodeMap[item.block];
-          if (!blockNd) continue;
-          const blockStartY = y;
-          const blockX = cx - NODE_W/2 - 20;
-          // Block header
-          y += 22;
-          // Sub-nodes
-          const subNodes = [];
-          for (const childId of item.children) {
-            const cnd = nodeMap[childId];
-            if (!cnd) continue;
-            const sx = cx - SUB_NODE_W/2;
-            nodes.push({ ...cnd, id:item.block+'_'+childId, origId:childId, x:sx, y, w:SUB_NODE_W, h:SUB_NODE_H });
-            subNodes.push({ id:item.block+'_'+childId, y, h:SUB_NODE_H });
-            y += SUB_NODE_H + SUB_GAP;
-          }
-          y += 4;
-          const blockH = y - blockStartY;
-          blocks.push({ id:item.block, label:blockNd.label + ' (' + blockNd.sublabel + ')', x:blockX, y:blockStartY, w:NODE_W+40, h:blockH });
-
-          // Track for skip paths
-          if (item.block === 'encoder_block') { encoderBlockY = blockStartY; encoderBlockBottom = y; }
-          if (item.block === 'decoder_block') { decoderBlockY = blockStartY; decoderBlockBottom = y; }
-
-          // Arrow from prev to block, block to next
-          if (prevMainId) {
-            arrows.push({ id:prevMainId+'->'+item.block, x1:cx, y1:prevMainBottom, x2:cx, y2:blockStartY });
-          }
-          // Arrows between sub-nodes
-          for (let i=1; i<subNodes.length; i++) {
-            arrows.push({ id:subNodes[i-1].id+'->'+subNodes[i].id, x1:cx, y1:subNodes[i-1].y+subNodes[i-1].h, x2:cx, y2:subNodes[i].y });
-          }
-          prevMainId = item.block;
-          prevMainBottom = y;
-          y += GAP_Y;
-        }
-      }
-
-      // Skip connection curves (encoder right side to decoder right side)
-      if (encoderBlockBottom && decoderBlockY) {
-        const sx = cx + NODE_W/2 + 30;
-        const cpx = cx + NODE_W/2 + 80;
-        skips.push({
-          id:'skip_curve',
-          d:`M ${sx} ${encoderBlockBottom - 20} C ${cpx} ${encoderBlockBottom} ${cpx} ${decoderBlockY} ${sx} ${decoderBlockY + 20}`
-        });
-      }
-
-      return { nodes, arrows, blocks, skips, height: y + 20, width: cx + NODE_W/2 + 120 };
-    });
-
-    const visibleNodes = computed(() => {
-      return layout.value.nodes;
-    });
-    const arrows = computed(() => layout.value.arrows);
-    const blockContainers = computed(() => layout.value.blocks);
-    const skipPaths = computed(() => layout.value.skips);
-    const svgWidth = computed(() => layout.value.width);
-    const svgHeight = computed(() => layout.value.height);
-
-    // ─── Sidebar ───
-    function nodesInCategory(cat) {
-      return NODES.filter(n => n.category === cat && (!search.value || n.label.toLowerCase().includes(search.value.toLowerCase())));
-    }
-
-    // ─── Selection ───
-    function selectNode(id) {
-      // Handle block sub-node IDs like 'encoder_block_self_attn'
-      // Layout nodes from blocks have origId set
-      const layoutNode = layout.value.nodes.find(n => n.id === id);
-      const origId = (layoutNode && layoutNode.origId) ? layoutNode.origId : id;
-      if (nodeMap[origId]) {
-        selectedNodeId.value = origId;
-        detailTab.value = 'learn';
-      }
-    }
-
-    // ─── Changes ───
-    function getChange(nodeId, submissionId) {
-      const nd = nodeMap[nodeId];
-      if (!nd || !nd.changes) return null;
-      return nd.changes[submissionId] || null;
-    }
-
-    function resolveOrigId(nodeId) {
-      const ln = layout.value.nodes.find(n => n.id === nodeId);
-      return (ln && ln.origId) ? ln.origId : nodeId;
-    }
-
-    function isChanged(nodeId) {
-      if (!compareSubmission.value) return false;
-      const origId = resolveOrigId(nodeId);
-      const nd = nodeMap[origId];
-      return nd && nd.changes && nd.changes[compareSubmission.value];
-    }
-
-    function isGhosted(nodeId) {
-      const origId = resolveOrigId(nodeId);
-      const nd = nodeMap[origId];
-      if (!nd || !nd.advanced) return false;
-      const sub = viewSubmission.value;
-      // Show advanced nodes only if the viewed submission uses them
-      if (sub === 'baseline') return true;
-      if (origId === 'bigram_hash') return !['sota','rank2','smear'].includes(sub);
-      if (origId === 'smear_gate') return !['sota','rank2','smear'].includes(sub);
-      if (origId === 'swa') return !['sota','rank2'].includes(sub);
-      if (origId === 'sliding_eval') return !['sota','rank2','rank3','smear'].includes(sub);
-      if (origId === 'lora_ttt') return sub !== 'lora';
-      return false;
-    }
-
-    // ─── Notes ───
-    function loadNotes() {
-      try {
-        return JSON.parse(localStorage.getItem('pgolf-explorer-notes') || '{}');
-      } catch { return {}; }
-    }
-    function saveNotes() {
-      localStorage.setItem('pgolf-explorer-notes', JSON.stringify(userNotes.value));
-    }
-    function getNotes(nodeId) {
-      return userNotes.value[nodeId] || [];
-    }
-    function addNote(nodeId) {
-      if (!userNotes.value[nodeId]) userNotes.value[nodeId] = [];
-      userNotes.value[nodeId].push({ id:generateId(), text:'', isTodo:false, done:false });
-      saveNotes();
-    }
-    function deleteNote(nodeId, noteId) {
-      if (!userNotes.value[nodeId]) return;
-      userNotes.value[nodeId] = userNotes.value[nodeId].filter(n => n.id !== noteId);
-      if (!userNotes.value[nodeId].length) delete userNotes.value[nodeId];
-      saveNotes();
-    }
-
-    // ─── SVG helpers ───
-    function arrowHead(x, y) {
-      return `${x-4},${y-6} ${x},${y} ${x+4},${y-6}`;
-    }
-
-    return {
-      selectedNodeId, viewSubmission, compareSubmission, detailTab, search, userNotes,
-      categories, submissions,
-      selectedNode, visibleNodes, arrows, blockContainers, skipPaths, svgWidth, svgHeight,
-      nodesInCategory, selectNode, getChange, isChanged, isGhosted,
-      getNotes, addNote, deleteNote, saveNotes,
-      arrowHead,
-    };
-  }
-}).mount('#app');
-</script>
-</body>
-</html>

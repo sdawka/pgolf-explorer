@@ -1,0 +1,66 @@
+:root {
+  --bg: #0f1117;
+  --bg2: #1a1d27;
+  --bg3: #242836;
+  --border: #2e3345;
+  --text: #e0e0e8;
+  --text2: #9498a8;
+  --accent: #6c8cff;
+  --gold: #ffd700;
+  --hack: #39d98a;
+  --danger: #e8834a;
+  --code-bg: #0b0d13;
+  --cat-embedding: #4A90D9;
+  --cat-normalization: #7B68EE;
+  --cat-attention: #E8834A;
+  --cat-mlp: #50C878;
+  --cat-structural: #CD853F;
+  --cat-output: #DC4C64;
+  --cat-training: #708090;
+  --cat-hacking: #39d98a;
+  --func-zone: #2a3140;
+  --impact-high: #39d98a;
+  --impact-med: #2a6b4a;
+  --impact-low: #3a3e4a;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+  background: var(--bg);
+  color: var(--text);
+  height: 100vh;
+  overflow: hidden;
+}
+
+#app {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  height: 100vh;
+}
+
+/* Shared header nav (used by BaseLayout) */
+.site-nav {
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+  padding: 10px 20px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+.site-nav .brand { font-weight: 600; color: var(--accent); letter-spacing: 0.5px; }
+.site-nav a {
+  color: var(--text2);
+  text-decoration: none;
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+.site-nav a:hover, .site-nav a.active {
+  color: var(--accent);
+  border-color: var(--accent);
+}
