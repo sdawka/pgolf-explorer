@@ -13,3 +13,6 @@ demo-dag/memory.db-wal
 
 # macOS
 .DS_Store
+
+# worktrees
+.worktrees/
