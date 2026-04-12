@@ -32,6 +32,18 @@ Output goes to `dist/`. The site is fully static — no server runtime required.
 5. No environment variables needed.
 6. No `_redirects` file needed — every route is prerendered as a real HTML file.
 
+## Contributing
+
+PRs welcome! If you've been digging into a model architecture — whether it's a new explorer page, a hack recipe, or plain-English notes on how something works — open a PR. The goal is to make small-model internals approachable for anyone curious about how these things actually work.
+
+Good contributions:
+- New architecture explorer pages (follow the pattern in `src/components/` and `src/data/`)
+- Hack recipes with clear steps and explanations
+- Plain-English breakdowns of model components
+- Corrections or deeper dives on existing content
+
+Keep the tone accessible — explain *why*, not just *what*.
+
 ## Project layout
 
 - `src/pages/` — one `.astro` file per route
