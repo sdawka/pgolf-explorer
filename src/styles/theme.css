@@ -64,3 +64,12 @@ body {
   color: var(--accent);
   border-color: var(--accent);
 }
+.site-nav .github-link {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  border: none;
+  padding: 4px;
+  opacity: 0.6;
+}
+.site-nav .github-link:hover { opacity: 1; border: none; }
