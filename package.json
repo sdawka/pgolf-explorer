@@ -7,11 +7,15 @@
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
-    "astro": "astro"
+    "astro": "astro",
+    "deploy": "astro build && wrangler pages deploy dist --project-name=pgolf-explorer --branch=main"
   },
   "dependencies": {
-    "astro": "^5.0.0",
     "@astrojs/vue": "^5.0.0",
+    "astro": "^5.0.0",
     "vue": "^3.5.0"
+  },
+  "devDependencies": {
+    "wrangler": "^4.81.1"
   }
 }
