@@ -13,10 +13,10 @@ export const CATEGORIES = {
 // Variants = the four Gemma 4 sizes. "score" column is a rough q4 BPB-ish stand-in;
 // we use it to show where each variant sits on the quality/footprint tradeoff.
 export const SUBMISSIONS = [
-  { id:'e2b',   label:'E2B (edge)',     score:'~2B act', ctx:'128K', layers:'26',    ramQ4:'~1.5GB' },
-  { id:'e4b',   label:'E4B (edge)',     score:'~4B act', ctx:'128K', layers:'34',    ramQ4:'~2.8GB' },
-  { id:'moe',   label:'26B-A4B (MoE)',  score:'4B act',  ctx:'256K', layers:'48',    ramQ4:'~14GB'  },
-  { id:'dense', label:'31B (dense)',    score:'31B',     ctx:'256K', layers:'56',    ramQ4:'~18GB'  },
+  { id:'e2b',   label:'E2B (edge)',     score:'~2B act', ctx:'128K', layers:'35',    ramQ4:'~1.5GB' },
+  { id:'e4b',   label:'E4B (edge)',     score:'~4B act', ctx:'128K', layers:'42',    ramQ4:'~3.2GB' },
+  { id:'moe',   label:'26B-A4B (MoE)',  score:'4B act',  ctx:'256K', layers:'30',    ramQ4:'~14GB'  },
+  { id:'dense', label:'31B (dense)',    score:'31B',     ctx:'256K', layers:'60',    ramQ4:'~18GB'  },
 ];
 
 export const NODES = [
@@ -94,7 +94,7 @@ export const NODES = [
   {
     id:'pre_norm', label:'Pre-Attention RMSNorm', category:'normalization',
     details:{
-      analogy:'A volume knob that resets the loudness of every word-vector to a consistent level before the next step. Without it, some numbers would get louder and louder as they pass through 34 layers and eventually blow out the speakers.',
+      analogy:'A volume knob that resets the loudness of every word-vector to a consistent level before the next step. Without it, some numbers would get louder and louder as they pass through dozens of layers and eventually blow out the speakers.',
       whatItDoes:'Classic RMSNorm: normalize each vector by its RMS magnitude, multiply by a learned per-dim scale. Applied before the attention sub-layer. Gemma 4 uses a learned scale initialized to 1.0 (with a +1 offset trick inherited from Gemma 2: `(1 + weight) * normed_x`).',
       whyItMatters:'Pre-norm placement makes very deep residual stacks trainable without warmup gymnastics. The +1 init trick makes the weight matrix safe to initialize near zero, improving optimizer stability on TPU.',
       keyParams:{ eps:'1e-6', learned_scale:'yes (+1 offset)', placement:'pre sub-layer' },
@@ -111,15 +111,15 @@ export const NODES = [
     changes:{}
   },
   {
-    id:'decoder_block', label:'Decoder Block', sublabel:'×N, 5:1 local:global', category:'structural',
+    id:'decoder_block', label:'Decoder Block', sublabel:'×N, 4:1 (E2B) / 5:1 (E4B/26B/31B)', category:'structural',
     details:{
-      analogy:'One floor of the building, repeated 34 times. Each floor has the same layout (attention, then thinking, then cleanup) but learns to specialize on a different job. Five out of every six floors only talk to nearby words; the sixth floor talks to the whole document.',
-      whatItDoes:'The core Transformer block, repeated N times (26 for E2B, 34 for E4B). Each block does: PLE lookup → pre-norm → attention (local OR global, alternating 5:1) → post-norm → pre-MLP-norm → GeGLU MLP → post-MLP-norm → residual. Gemma 4 keeps the "double norm" pattern from Gemma 2 (norm before AND after each sub-layer).',
-      whyItMatters:'The 5:1 local/global interleave is THE reason long context is tractable on a laptop. Five of every six layers only attend to a 512-token sliding window — quadratic cost in 512, not 128K. Only the sixth layer pays full cost. KV cache stays tiny.',
-      keyParams:{ N_E2B:'26', N_E4B:'34', pattern:'5 local → 1 global (repeat)', double_norm:'yes' },
+      analogy:'One floor of the building, repeated many times (35 for E2B, 42 for E4B, 30 for 26B-A4B, 60 for 31B). Each floor has the same layout (attention, then thinking, then cleanup) but learns to specialize on a different job. Most floors only talk to nearby words; every 5th or 6th floor talks to the whole document.',
+      whatItDoes:'The core Transformer block, repeated N times: 35 for E2B, 42 for E4B, 30 for 26B-A4B, 60 for 31B. E2B uses a 4:1 sliding/global ratio; all other variants use 5:1. Each block does: PLE lookup → pre-norm → attention (local OR global, alternating per pattern) → post-norm → pre-MLP-norm → GeGLU MLP → post-MLP-norm → residual. Gemma 4 keeps the "double norm" pattern from Gemma 2 (norm before AND after each sub-layer).',
+      whyItMatters:'The local/global interleave is THE reason long context is tractable on a laptop. Most layers only attend to a 512-token sliding window — quadratic cost in 512, not 128K. Only the global layers pay full cost. KV cache stays tiny.',
+      keyParams:{ N_E2B:'35', N_E4B:'42', N_26B:'30', N_31B:'60', pattern_E2B:'4 local → 1 global', pattern_others:'5 local → 1 global', double_norm:'yes' },
       hackIt:[
         'For 128K-context inference on a MacBook Air, the global-attention layers are your bottleneck. llama.cpp now supports selective KV-cache quantization — drop global-layer KV to q4 and you\'ll still have room for long documents.',
-        'To fine-tune cheaply, apply LoRA only to the GLOBAL layers (every 6th) — you capture most of the long-range reasoning with ~1/6 the adapter params.',
+        'To fine-tune cheaply, apply LoRA only to the GLOBAL layers — every 6th layer for E4B/26B/31B (5:1 pattern), or every 5th layer for E2B (4:1 pattern). You capture most of the long-range reasoning with a fraction of the adapter params.',
         'Experiment: rip out all global layers and re-train briefly. You get a "short-context only" variant that\'s ~15% faster but caps at ~512 tokens. Useful for embedded.',
       ],
       alternatives:['All-global attention (too expensive long-context)', 'All-local (can\'t do long-range reasoning)', 'Ring attention', 'Mamba / SSM blocks'],
@@ -140,7 +140,7 @@ export const NODES = [
       analogy:'Each word only gets to peek at the 512 words immediately before it — like reading with a sliding magnifying glass instead of the whole page at once. Cheap, fast, and catches most grammar and local meaning.',
       whatItDoes:'Grouped-Query Attention restricted to a 512-token sliding window (1024 for 26B/31B). Each token only attends to the 512 tokens immediately before it. Uses RoPE with base ≈10K for short-range positional precision.',
       whyItMatters:'Quadratic attention cost is bounded by window size, not sequence length. At 128K context, local layers do ~250× less work than a global layer would. This is the primary compute saving.',
-      keyParams:{ window:'512 (E2B/E4B), 1024 (26B/31B)', heads:'GQA, kv_heads = heads/4', rope_base:'10000', qk_norm:'yes' },
+      keyParams:{ window:'512 (E2B/E4B), 1024 (26B/31B)', kv_heads:'1 (E2B) / 2 (E4B) / 16 (31B)', rope_base:'10000', qk_norm:'yes' },
       hackIt:[
         'KV cache for local layers only needs to hold 512 tokens per layer — trivial. You can keep it all in fp16 even on a Raspberry Pi 5.',
         'If you run Gemma 4 under llama.cpp with flash-attn on Metal, local layers dispatch to a specialized SWA kernel. Make sure you\'re on a build from April 2026 or later.',
@@ -160,11 +160,12 @@ export const NODES = [
     id:'global_attn', label:'Global Attn', sublabel:'p-RoPE, every 6th layer', category:'attention', isSub:true,
     details:{
       analogy:'The one layer where every word in a 128,000-word document can talk to every other word. It\'s hugely expensive, which is why only 1 in every 6 layers is allowed to do it. All long-range reasoning ("what did chapter 2 say that matters here?") happens through these rare layers.',
-      whatItDoes:'Full causal attention over the entire sequence. Same GQA head layout as local layers but no window. Uses Proportional RoPE (p-RoPE): a subset of RoPE frequencies are scaled to extend effective range, the rest kept as-is. Also uses QK-Norm (RMSNorm applied to Q and K before the dot product).',
-      whyItMatters:'Global layers carry all long-range reasoning. p-RoPE is Gemma 4\'s answer to the extrapolation problem: instead of scaling ALL rotary frequencies (YaRN-style), only a proportional slice gets scaled, preserving short-range fidelity. QK-Norm replaces Gemma 2\'s logit soft-cap — it\'s cheaper and more stable.',
-      keyParams:{ window:'full', rope:'p-RoPE (scaled subset)', qk_norm:'RMSNorm on Q,K', kv_heads:'= attn_heads/4' },
+      whatItDoes:'Full causal attention over the entire sequence. Same GQA head layout as local layers but no window. Uses Proportional RoPE (p-RoPE): instead of rotating ALL frequency dimensions (full RoPE), only the first 25% of dimension pairs (partial_rotary_factor=0.25) receive positional encoding, preserving the remaining 75% as position-agnostic content dimensions. This makes the model robust to sequences longer than training length. The final layer of every Gemma 4 variant is always a global attention layer, guaranteeing one full-context pass at inference end. Also uses QK-Norm (RMSNorm applied to Q and K before the dot product). To reduce KV-cache cost further, the last N layers (18 for E4B, 20 for E2B) share K/V tensors with the preceding global layer instead of computing their own — eliminating redundant projections with minimal quality impact.',
+      whyItMatters:'Global layers carry all long-range reasoning. p-RoPE is Gemma 4\'s answer to the extrapolation problem: instead of scaling ALL rotary frequencies (YaRN-style), only the first 25% of dimension pairs get positional encoding, preserving short-range fidelity in the remaining dimensions. QK-Norm replaces Gemma 2\'s logit soft-cap — it\'s cheaper and more stable.',
+      keyParams:{ window:'full', rope:'p-RoPE, partial_rotary_factor=0.25', rope_theta:'1000000 (vs 10000 local)', final_layer:'always global', num_kv_shared_layers:'18 (E4B) / 20 (E2B) layers reuse prior K,V', qk_norm:'RMSNorm on Q,K' },
       hackIt:[
         'LONG-CONTEXT LAPTOP TRICK: quantize global-layer KV cache to q4_0, keep local KV in fp16. `llama.cpp --kv-cache-type-global q4_0`. Fits 128K context in ~4GB on E4B.',
+        'The `num_kv_shared_layers` sharing means the last ~18 layers in E4B have no KV cache of their own — quantization and memory budgeting tools that account for this will estimate cache size more accurately.',
         'If you want to experiment with context extension beyond 128K, p-RoPE lets you scale ONLY the already-scaled frequencies further — much safer than naive YaRN on Gemma.',
         'QK-Norm means you can ablate the soft-cap code path entirely if you\'re porting from a Gemma 2 fork. Cleaner, faster.',
       ],
@@ -196,19 +197,19 @@ export const NODES = [
       ]
     },
     changes:{
-      moe:'Plus a parallel MoE block (8 experts, 2 active) whose output is ADDED to the dense MLP output.',
+      moe:'MoE block (128 experts, top-8 active) replaces the dense MLP entirely. Per-expert intermediate_size is 704.',
     }
   },
   {
     id:'moe_block', label:'MoE Side Block', sublabel:'26B-A4B only', category:'structural', advanced:true,
     details:{
-      analogy:'A panel of 8 specialist experts sitting next to the regular factory. For every word, a tiny router picks the 2 experts most relevant to it, and their advice gets added on top of the regular processing. The 26B model has ~26 billion "specialists" on staff but only calls 4 billion worth of them per word.',
-      whatItDoes:'In the 26B-A4B variant, each decoder layer adds a parallel Mixture-of-Experts block alongside the standard MLP. A router picks ~2 of 8 experts per token; their outputs are summed with the dense MLP output. Gemma 4 does NOT replace the MLP (the usual pattern) — it keeps both.',
-      whyItMatters:'Unique design choice: gives consistent dense throughput (you always pay the MLP cost) plus sparse extra capacity. Simpler to train than pure-MoE, at the cost of some efficiency. Only 4B parameters activate per token despite 26B total.',
-      keyParams:{ experts:'8', active:'2', routing:'top-k', summed_with:'dense MLP output' },
+      analogy:'A panel of 128 specialist experts that collectively ARE the feedforward layer. For every word, a tiny router picks the 8 experts most relevant to it, and their weighted outputs are the sole feedforward signal for that layer. The 26B model has ~26 billion "specialists" on staff but only calls 4 billion worth of them per word.',
+      whatItDoes:'In the 26B-A4B variant, the standard dense MLP in every decoder layer is replaced by a Mixture-of-Experts block. A router picks 8 of 128 experts per token; their weighted outputs are the sole feedforward signal for that layer — there is no parallel dense MLP. Per-expert FFN width is 704 (vs. the full hidden_size of 2816), keeping each expert small while the ensemble provides large capacity.',
+      whyItMatters:'MoE replaces the dense MLP entirely, giving sparse compute (only 8 of 128 experts activate per token) while retaining large total parameter capacity. Only 4B parameters activate per token despite 26B total.',
+      keyParams:{ experts:'128', active:'8 (top-k)', moe_intermediate_size:'704', routing:'top-k softmax', replaces:'dense MLP entirely' },
       hackIt:[
         'The 26B-A4B is ~14GB in Q4_K_M. Fits on a 16GB M-series Mac with room for KV cache if you run short context.',
-        'Expert-offload is supported in llama.cpp — inactive experts live on SSD, active ones stream in. Viable on 8GB systems but slow (~3 tok/s).',
+        'Expert-offload is supported in llama.cpp — with 128 experts and only 8 active per token, most experts are idle at any given step, making offloading very effective. Inactive experts live on SSD, active ones stream in. Viable on 8GB systems but slow (~3 tok/s).',
         'Fine-tuning experts individually is possible via PEFT but tricky — the router is frozen unless you explicitly unfreeze it.',
       ],
       alternatives:['Standard MoE (replaces MLP) — DeepSeek, Qwen', 'Switch Transformer (single expert)', 'Dense only (31B path)'],
@@ -225,10 +226,10 @@ export const NODES = [
   {
     id:'vision_enc', label:'Vision Encoder', sublabel:'SigLIP-v2, var-aspect', category:'structural', advanced:true,
     details:{
-      analogy:'An eyeball bolted onto the side of the model. It converts an image into a short sequence of "image words" that the main model reads alongside your text prompt. You can dial how detailed those image-words are (64 = glance, 256 = read).',
-      whatItDoes:'Optional image tower (used by -it instruction-tuned variants). Based on SigLIP-v2 with two upgrades over Gemma 3: (1) variable aspect ratio — no forced square crop; (2) configurable image-token count — you pick the tradeoff between visual detail and sequence budget.',
-      whyItMatters:'Configurable token count is the killer feature for laptops. On an 8GB machine you can set image tokens to 64 (low detail, fast) or 256 (more detail, slower). Same weights, different runtime knob.',
-      keyParams:{ backbone:'SigLIP-v2', image_tokens:'64 / 128 / 256 (configurable)', input_shape:'variable aspect' },
+      analogy:'An eyeball bolted onto the side of the model. It converts an image into a short sequence of "image words" that the main model reads alongside your text prompt. The default is 280 soft tokens, and both E2B/E4B and the larger 26B/31B variants support variable aspect ratios — no forced square crop.',
+      whatItDoes:'Optional image tower (used by -it instruction-tuned variants). Based on SigLIP-v2 with variable aspect ratio support. The smaller encoder (hidden_size 768, 16 layers, ~150M params) is used for E2B/E4B; the larger encoder (hidden_size 1152, 27 layers, ~550M params) is used for 26B/31B. Default is 280 soft tokens per image across all variants, with 2D RoPE for positional encoding.',
+      whyItMatters:'Two encoder sizes let Google tune the vision capacity to the text model it accompanies without wasting parameters. At 280 soft tokens per image, the vision tower adds meaningful visual context while keeping sequence length predictable for KV-cache budgeting.',
+      keyParams:{ backbone:'SigLIP-v2', hidden_size:'768 (E2B/E4B) / 1152 (26B/31B)', layers:'16 (E2B/E4B) / 27 (26B/31B)', params:'~150M (E2B/E4B) / ~550M (26B/31B)', default_soft_tokens:'280', input_shape:'variable aspect ratio' },
       hackIt:[
         'Use `--vision-tokens 64` flag in llama.cpp for snappy multimodal chat on an Air. Bumps to 256 only when you actually need OCR-grade detail.',
         'The vision tower is separable — if you only need text, unload it via `--no-vision` and reclaim ~400MB.',
@@ -241,6 +242,30 @@ export const NODES = [
       ]
     },
     changes:{}
+  },
+  {
+    id:'audio_enc', label:'Audio Encoder', sublabel:'E2B/E4B only — USM conformer', category:'structural', advanced:true,
+    details:{
+      analogy:'A pair of ears bolted onto the small models. It converts speech or audio into a sequence of \"audio words\" that the text decoder reads alongside your prompt — the same way the vision encoder converts images into image words. Works natively for transcription, translation, and general audio Q&A.',
+      whatItDoes:'A USM-style conformer (hidden_size 1024, 12 layers) that encodes raw audio into contextual embeddings, followed by 2D convolutional downsampling to shorten the sequence, then a linear projection to align with the text embedding space (1536 for E2B, 2560 for E4B). Exclusive to E2B/E4B — the larger 26B/31B variants are text+vision only.',
+      whyItMatters:'Adds a complete speech modality without any additional decoder weights. The same quantized E4B checkpoint that fits in 3GB can transcribe audio, answer questions about it, and translate it — no separate ASR model needed.',
+      keyParams:{ backbone:'USM-style conformer', hidden_size:'1024', conformer_layers:'12', output:'projected to d_model (1536/2560)', models:'E2B and E4B only' },
+      hackIt:[
+        'Pass audio via the standard HF `processor` for Gemma 4 — it handles chunking, feature extraction, and projection automatically.',
+        'In llama.cpp, audio support requires a build from May 2026 or later with the `--audio` flag enabled.',
+        'The audio encoder is separable: `--no-audio` unloads it and reclaims ~200MB if you only need text+vision.',
+        'For transcription fine-tuning, freeze the conformer weights and LoRA only the projection layer. The conformer is already pretrained on massive audio data.',
+      ],
+      alternatives:['Whisper-style encoder (OpenAI)', 'wav2vec 2.0', 'Text-only (26B/31B path)'],
+      studyFurther:[
+        {topic:'USM — Universal Speech Model (Google)', url:'https://arxiv.org/abs/2303.01037'},
+        {topic:'Gemma 4 HF blog — audio examples', url:'https://huggingface.co/blog/gemma4'},
+      ]
+    },
+    changes:{
+      moe:'NOT USED. 26B-A4B is text + vision only.',
+      dense:'NOT USED. 31B is text + vision only.',
+    }
   },
   {
     id:'final_norm', label:'Final RMSNorm', category:'normalization',
@@ -379,11 +404,11 @@ export const NODES = [
 
 // ─── FUNCTIONAL ROLE GROUPINGS (plain-English "what it's FOR") ───
 export const FUNCTIONS = [
-  { id:'ingest',    label:'Getting words in',         analogy:'Translating text (and optionally images) into lists of numbers the model can actually do math on.', nodes:['input_tokens','tok_emb','ple','vision_enc'] },
+  { id:'ingest',    label:'Getting words in',         analogy:'Translating text (and optionally images) into lists of numbers the model can actually do math on.', nodes:['input_tokens','tok_emb','ple','vision_enc','audio_enc'] },
   { id:'mix',       label:'Mixing info across words', analogy:'Letting each word peek at other words so it understands context. This is what "attention" means — and it\'s the only way words influence each other.', nodes:['local_attn','global_attn'] },
   { id:'think',     label:'Per-word thinking',        analogy:'After words exchange notes, each word goes off by itself to process what it just learned. Most of the model\'s stored knowledge lives here.', nodes:['mlp','moe_block'] },
-  { id:'stabilize', label:'Keeping numbers sane',     analogy:'Invisible volume-reset steps that prevent signals from exploding or vanishing as they pass through 34 layers. Load-bearing despite being tiny.', nodes:['pre_norm','final_norm'] },
-  { id:'scaffold',  label:'Structural wiring',        analogy:'The overall skeleton — 34 identical "floors" stacked on top of each other, with a rule that every 6th floor gets to see the whole document.', nodes:['decoder_block'] },
+  { id:'stabilize', label:'Keeping numbers sane',     analogy:'Invisible volume-reset steps that prevent signals from exploding or vanishing as they pass through many layers. Load-bearing despite being tiny.', nodes:['pre_norm','final_norm'] },
+  { id:'scaffold',  label:'Structural wiring',        analogy:'The overall skeleton — many identical "floors" stacked on top of each other (35/42/30/60 depending on variant), with a rule that every 5th or 6th floor gets to see the whole document.', nodes:['decoder_block'] },
   { id:'decode',    label:'Picking the next word',    analogy:'Turning the final number-soup back into an actual word, chosen from the 262,144-word dictionary.', nodes:['output_head'] },
 ];
 
@@ -437,6 +462,7 @@ export const FLOW = [
   { block:'decoder_block', children:['local_attn','global_attn','mlp'] },
   'moe_block',
   'vision_enc',
+  'audio_enc',
   'final_norm',
   'output_head',
   '__sep__',
